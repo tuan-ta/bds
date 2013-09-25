@@ -19,7 +19,7 @@ classdef TrafficManager
                 elseif user.CoopManager.HelpeeID == user.ID % help granted to this UE
                     helper = user.CoopManager.assignHelper(user);
                     if ~isempty(helper)
-                        consumeEnergy([user helper],'D2D');
+                        consumeEnergy([user helper],'D2D');                        
                     else
                         consumeEnergy(user,'U2E');
                     end
@@ -49,17 +49,21 @@ classdef TrafficManager
             
             % schedule the next burst
             if strcmpi(user.TrafficModel.InterArrivalType,'geometric')
-                nextBurstInstant = random('geo',...
-                    1/(user.TrafficModel.InterArrivalParam*1000/SimulationConstants.SimTimeTick_ms));
+                % parameter of the geometric distribution is drawn from
+                % a uniform distribution
+                interArrivalParam = random('unif',user.TrafficModel.InterArrivalParam(1),...
+                    user.TrafficModel.InterArrivalParam(2));
+                interArrivalParam = interArrivalParam*1000/SimulationConstants.SimTimeTick_ms;
+                nextBurstInstant = random('geo',1/interArrivalParam);
                 user.NextBurstInstant = user.NextBurstInstant + max(nextBurstInstant,1);
                 if strcmpi(user.TrafficModel.DataSizeType,'geometric')
                     nextBurstSize = random('geo',1/user.TrafficModel.DataSizeParam);
                     user.NextBurstSize = nextBurstSize;
                 end
                 
-                if SimulationConstants.LoggingFlag
-                    logData(user);
-                end                  
+%                 if SimulationConstants.LoggingFlag
+%                     logData(user);
+%                 end                  
                 
                 if DEBUG
                     fprintf('Data for user %g, next arrival %g, size %g\n',...
@@ -110,6 +114,15 @@ function consumeEnergy(users,linkType)
                 SimulationConstants.CircuitryEnergy_mJ;
             
             users.depleteBattery(energyConsumed);
+%             if SimulationConstants.LoggingFlag
+%                 energyData = struct('Time',users(1).Clock,...
+%                                     'Event',linkType,...
+%                                     'Details',struct('PathLoss',ChannelManager.pathloss(users,linkType),...
+%                                                      'TransmitPower',transmitPower_dBm,...
+%                                                      'EnergyConsumed',energyConsumed),...
+%                                                      'ID',users.ID);
+%                 users.Log = [users.Log energyData];
+%             end
 %             if DEBUG
 %                 fprintf('U2E energy consumed by user %g: %g\n',users.ID,energyConsumed);
 %             end
@@ -132,6 +145,22 @@ function consumeEnergy(users,linkType)
             
             helpee.depleteBattery(helpeeEnergyConsumed);
             helper.depleteBattery(helperEnergyConsumed);
+%             if SimulationConstants.LoggingFlag
+%                 helpeeEnergyData = struct('Time',helpee.Clock,...
+%                                           'Event','Helpee',...
+%                                           'Details',struct('PathLoss',ChannelManager.pathloss(users,'D2D'),...
+%                                                            'TransmitPower',helpeeTransmitPower_dBm,...
+%                                                            'EnergyConsumed',helpeeEnergyConsumed),...
+%                                                            'ID',helper.ID);
+%                 helpee.Log = [helpee.Log helpeeEnergyData];
+%                 helperEnergyData = struct('Time',helper.Clock,...
+%                                           'Event','Helper',...
+%                                           'Details',struct('PathLoss',ChannelManager.pathloss(helper,'U2E'),...
+%                                                            'TransmitPower',helperTransmitPower_dBm,...
+%                                                            'EnergyConsumed',helperEnergyConsumed),...
+%                                                            'ID',helpee.ID);
+%                 helper.Log = [helper.Log helperEnergyData];
+%             end
             if DEBUG
                 fprintf('D2D path loss for user %g: %g\n',helpee.ID,ChannelManager.pathloss(users,'D2D'));
                 fprintf('U2E path loss for user %g: %g\n',helper.ID,ChannelManager.pathloss(helper,'U2E'));

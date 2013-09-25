@@ -25,9 +25,9 @@ classdef MobilityManager
                 user.Speed = 0;
                 MobilityManager.updatePosition(user);
             end
-            if SimulationConstants.LoggingFlag
-                logData(user);
-            end
+%             if SimulationConstants.LoggingFlag
+%                 logData(user);
+%             end
             if DEBUG
                 fprintf('Mobility.generateMovement\n');
                 user

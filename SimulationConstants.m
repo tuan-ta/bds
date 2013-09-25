@@ -5,14 +5,14 @@ classdef SimulationConstants
         SimTime_h = 10;%100/3600; % (h)
         SimTimeTick_ms = 1000; % (ms)
         CooperationFlag = false; % enable/disable cooperation
-        LoggingFlag = true; % log events in user's log field
+        LoggingFlag = false; % log events in user's log field
         
         % Traffic model
-        InterBurstArrival_s = 30; % (s)
+        InterBurstArrival_s = [30 300]; % (s)
         MeanBurstSize_bytes = 9000; % (bytes)
         
         % Mobility model
-        SpeedInterval_mps = [0.1 3]; % (m/s)
+        SpeedInterval_mps = [0.1 5]; % (m/s)
         PauseInterval_s = [0 300]; % (s)
         WalkInterval_s = [30 300]; % (s)
         
@@ -28,7 +28,7 @@ classdef SimulationConstants
         %   - InterBurstArrival: 30 s (should be the same as above)
         CircuitryEnergy_mJ = 15; % 3mW * 5s = 15mJ
         
-        BatteryCapacity_mJ = 8e3; % (mJ)
+        BatteryCapacity_mJ = 10e3; % (mJ)
         BasePowerU2E_dBm = -69; % -126 to 24 dBm (LTE book pg. 413)
             % An UE in the middle of the cell (250m) spends 3x power per RB
             % compared to idle (1*3 = 3mW)
@@ -44,8 +44,8 @@ classdef SimulationConstants
         NumWallsIndoorNLOS = 1;
         
         % Helper selection algorithm
-        HighThreshold = 0.3;
-        LowThreshold = 0.3;
+        HighThreshold = 0.1;
+        LowThreshold = 0.1;
         HelpRange_m = 30; % (m)
     end
 end
