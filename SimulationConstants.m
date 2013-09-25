@@ -12,8 +12,8 @@ classdef SimulationConstants
         MeanBurstSize_bytes = 9000; % (bytes)
         
         % Mobility model
-        SpeedInterval_mps = [0.1 5]; % (m/s)
-        PauseInterval_s = [0 300]; % (s)
+        SpeedInterval_mps = [5 10]; % (m/s)
+        PauseInterval_s = [0 0]; % (s)
         WalkInterval_s = [30 300]; % (s)
         
         % Channel model and battery consumption parameters
@@ -28,7 +28,7 @@ classdef SimulationConstants
         %   - InterBurstArrival: 30 s (should be the same as above)
         CircuitryEnergy_mJ = 15; % 3mW * 5s = 15mJ
         
-        BatteryCapacity_mJ = 10e3; % (mJ)
+        BatteryCapacity_mJ = 5e3; % (mJ)
         BasePowerU2E_dBm = -69; % -126 to 24 dBm (LTE book pg. 413)
             % An UE in the middle of the cell (250m) spends 3x power per RB
             % compared to idle (1*3 = 3mW)
@@ -47,5 +47,6 @@ classdef SimulationConstants
         HighThreshold = 0.1;
         LowThreshold = 0.1;
         HelpRange_m = 30; % (m)
+        PathlossThreshold_dBm = 110;
     end
 end

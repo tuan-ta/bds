@@ -50,9 +50,11 @@ classdef LTEUser < handle
                 return            
             end
             
-            if strcmpi(u.Status,'high') && u.CoopManager.HelpFlag &&...
-                    norm(u.Position-u.CoopManager.HelpeePos) <= SimulationConstants.HelpRange_m
-                u.CoopManager.registerHelper(u);
+            if strcmpi(u.Status,'high') && u.CoopManager.HelpFlag 
+                MobilityManager.updatePosition(u);
+                if norm(u.Position-u.CoopManager.HelpeePos) <= SimulationConstants.HelpRange_m
+                    u.CoopManager.registerHelper(u);
+                end
             end
             
             % event triggers happen before clock tick to make scheduling start at time 0

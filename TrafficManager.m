@@ -10,7 +10,8 @@ classdef TrafficManager
             DEBUG = false;
             
             % consume battery for current burst
-            if SimulationConstants.CooperationFlag && strcmpi(user.Status,'low')
+            if SimulationConstants.CooperationFlag && strcmpi(user.Status,'low') && ...
+                    ChannelManager.pathloss(user,'U2E') > SimulationConstants.PathlossThreshold_dBm
                 if ~user.CoopManager.HelpFlag % first to request help                
                     user.CoopManager.requestHelp(user);
                     % check for helper assignment in the next clock
@@ -49,10 +50,14 @@ classdef TrafficManager
             
             % schedule the next burst
             if strcmpi(user.TrafficModel.InterArrivalType,'geometric')
+                if length(user.TrafficModel.InterArrivalParam)==2
                 % parameter of the geometric distribution is drawn from
                 % a uniform distribution
-                interArrivalParam = random('unif',user.TrafficModel.InterArrivalParam(1),...
-                    user.TrafficModel.InterArrivalParam(2));
+                    interArrivalParam = random('unif',user.TrafficModel.InterArrivalParam(1),...
+                        user.TrafficModel.InterArrivalParam(2));
+                else
+                    interArrivalParam = user.TrafficModel.InterArrivalParam;
+                end
                 interArrivalParam = interArrivalParam*1000/SimulationConstants.SimTimeTick_ms;
                 nextBurstInstant = random('geo',1/interArrivalParam);
                 user.NextBurstInstant = user.NextBurstInstant + max(nextBurstInstant,1);

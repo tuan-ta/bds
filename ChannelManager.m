@@ -4,12 +4,13 @@ classdef ChannelManager
 
     methods (Static)
         function pl_dB = pathloss(users,linkType)
-            DEBUG = false;
+            DEBUG = false;            
             switch lower(linkType)
                 case 'u2e' % WINNER II model C2
                     if length(users)~=1
                         error('U2E link type should only have 1 UE.');
                     end
+                    MobilityManager.updatePosition(users);
                     d = norm(users.Position);
                     hBS = SimulationConstants.BSAntennaHeight_m;
                     hMS = SimulationConstants.UEAntennaHeight_m;
@@ -39,7 +40,9 @@ classdef ChannelManager
                 case 'd2d' % WINNER II model A1
                     if length(users)~=2
                         error('D2D link type should have 2 UEs.');
-                    end                    
+                    end
+                    MobilityManager.updatePosition(users(1));
+                    MobilityManager.updatePosition(users(2));
                     d = norm(users(1).Position - users(2).Position);
                     if d > 100
                         warning('WINNER II indoor channel model doesn''t support distance greater than 100m. The current distance is %g.',d);
