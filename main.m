@@ -11,7 +11,7 @@ cooperationManager = CooperationManager();
 
 %% create users
 % pos = [50 0];
-numUsers = 1000;
+numUsers = 500;
 % startInstants = random('unif',0,SimulationConstants.SimDay_h*3600e3/SimulationConstants.SimTimeTick_ms,...
 %     1,numUsers);
 % stopInstants = startInstants + SimulationConstants.SimExpectedUsage_h*3600e3/SimulationConstants.SimTimeTick_ms;
@@ -35,7 +35,8 @@ for t = 1:simTime
     for iUser = find(activeUserList)
         user = users(iUser);
         user.clockTick();
-        if strcmpi(user.Status,'death') || strcmpi(user.Status,'stopped')
+        if strcmpi(user.StatusCoop,'stopped') || ...
+                (strcmpi(user.StatusCoop,'death') && strcmpi(user.StatusNoncoop,'death'))
             activeUserList(iUser) = false;
         end
     end

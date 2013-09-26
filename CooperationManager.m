@@ -15,7 +15,7 @@ classdef CooperationManager < handle
             if CM.HelpFlag
                 error('Another user has already requested help.');
             end
-            if ~strcmpi(user.Status,'low')
+            if ~strcmpi(user.StatusCoop,'low')
                 error('Helpee must be in ''low'' state.');
             end
             CM.HelpFlag = true;
@@ -32,7 +32,6 @@ classdef CooperationManager < handle
         % assignHelper selects among users within range the one with
         % highest remaning battery level
         
-            DEBUG = false;
             assignmentMode = 'closest'; % 'closest' or 'max_battery'
             helper = [];
             maxBatteryLevel = -Inf; minDistance = Inf;
@@ -59,7 +58,7 @@ classdef CooperationManager < handle
             if ~isempty(helper)
                 CM.HelpLog(3,end) = helper.ID;
             end
-            if DEBUG
+            if SimulationConstants.DebugFlag
                 CM
                 helper
             end

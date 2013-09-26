@@ -10,47 +10,87 @@ classdef TrafficManager
             DEBUG = false;
             
             % consume battery for current burst
-            if SimulationConstants.CooperationFlag && strcmpi(user.Status,'low') && ...
-                    ChannelManager.pathloss(user,'U2E') > SimulationConstants.PathlossThreshold_dBm
-                if ~user.CoopManager.HelpFlag % first to request help                
-                    user.CoopManager.requestHelp(user);
-                    % check for helper assignment in the next clock
-                    user.NextBurstInstant = user.NextBurstInstant + 1;
-                    return
-                elseif user.CoopManager.HelpeeID == user.ID % help granted to this UE
-                    helper = user.CoopManager.assignHelper(user);
-                    if ~isempty(helper)
-                        consumeEnergy([user helper],'D2D');                        
-                    else
-                        consumeEnergy(user,'U2E');
+            %% noncoop
+            if ~(strcmpi(user.StatusNoncoop,'death') || user.WaitingForHelpAssignmentFlag)
+                consumeEnergy(user,'U2E','Noncoop');                
+                if user.BatteryLevelNoncoop <= 0
+                    user.StatusNoncoop = 'death';
+                    user.DeathInstantNoncoop = user.Clock;
+                    
+                    if SimulationConstants.LoggingFlag
+                        user.Log = [user.Log struct('Time',user.Clock,...
+                                                    'Event','NoncoopDeath',...
+                                                    'Details',[])];
                     end
-                    if DEBUG
-                        user
-                        helper
-                    end
-                else % somebody else has already requested help 
-                     % wait until next round
-                    user.NextBurstInstant = user.NextBurstInstant + 1;
-                    return
-%                     consumeEnergy(user,'U2E');
-                end                   
-            else
-                consumeEnergy(user,'U2E');
+                end
             end
             
-            % update UE's status
-            if user.BatteryLevel >= SimulationConstants.HighThreshold*SimulationConstants.BatteryCapacity_mJ
-                user.Status = 'high';
-            elseif user.BatteryLevel >= SimulationConstants.LowThreshold*SimulationConstants.BatteryCapacity_mJ
-                user.Status = 'medium';
-            elseif user.BatteryLevel > 0
-                user.Status = 'low';
-            else
-                user.Status = 'death';
-                return
+            %% coop
+            % WaitingForHelpAssignmentFlag should be cleared every time a burst is served
+            if ~strcmpi(user.StatusCoop,'death')
+                if user.WaitingForHelpAssignmentFlag || ...
+                        (SimulationConstants.CooperationFlag && strcmpi(user.StatusCoop,'low') && ...
+                        ChannelManager.pathloss(user,'U2E') > SimulationConstants.PathlossThreshold_dBm)
+                    if ~user.CoopManager.HelpFlag % first to request help                
+                        user.CoopManager.requestHelp(user);
+                        % check for helper assignment in the next clock
+                        user.NextBurstInstant = user.NextBurstInstant + 1;
+                        user.WaitingForHelpAssignmentFlag = true;
+                        return
+                    elseif user.CoopManager.HelpeeID == user.ID % help granted to this UE
+                        helper = user.CoopManager.assignHelper(user);
+                        if ~isempty(helper)
+                            energy = consumeEnergy([user helper],'D2D','Coop');
+                            
+                            if SimulationConstants.LoggingFlag
+                                user.Log = [user.Log struct('Time',user.Clock,...
+                                                            'Event','Coop',...
+                                                            'Details',struct('Helpee',user.ID,...
+                                                                             'Helper',helper.ID,...
+                                                                             'HelpeePos',user.Position,...
+                                                                             'HelperPos',helper.Position,...
+                                                                             'HelpeeEnergyConsumed',energy(1),...
+                                                                             'HelperEnergyConsumed',energy(2)))];
+                            end
+                        else
+                            consumeEnergy(user,'U2E','Coop');
+                        end
+                        user.WaitingForHelpAssignmentFlag = false;
+                        if DEBUG
+                            user
+                            helper
+                        end
+                    else % somebody else has already requested help 
+                         % wait until next round
+                        user.NextBurstInstant = user.NextBurstInstant + 1;
+                        user.WaitingForHelpAssignmentFlag = true;
+                        return
+                    end                   
+                else
+                    consumeEnergy(user,'U2E','Coop');
+                    user.WaitingForHelpAssignmentFlag = false;
+                end
+
+                % update UE's status
+                if user.BatteryLevelCoop >= SimulationConstants.HighThreshold*SimulationConstants.BatteryCapacity_mJ
+                    user.StatusCoop = 'high';
+                elseif user.BatteryLevelCoop >= SimulationConstants.LowThreshold*SimulationConstants.BatteryCapacity_mJ
+                    user.StatusCoop = 'medium';
+                elseif user.BatteryLevelCoop > 0
+                    user.StatusCoop = 'low';
+                else
+                    user.StatusCoop = 'death';
+                    user.DeathInstantCoop = user.Clock;
+                    
+                    if SimulationConstants.LoggingFlag
+                        user.Log = [user.Log struct('Time',user.Clock,...
+                                                    'Event','CoopDeath',...
+                                                    'Details',[])];
+                    end                    
+                end
             end
             
-            % schedule the next burst
+            %% schedule the next burst
             if strcmpi(user.TrafficModel.InterArrivalType,'geometric')
                 if length(user.TrafficModel.InterArrivalParam)==2
                 % parameter of the geometric distribution is drawn from
@@ -68,9 +108,9 @@ classdef TrafficManager
                     user.NextBurstSize = nextBurstSize;
                 end
                 
-%                 if SimulationConstants.LoggingFlag
-%                     logData(user);
-%                 end                  
+                if SimulationConstants.LoggingFlag
+                    logData(user);
+                end                  
                 
                 if DEBUG
                     fprintf('Data for user %g, next arrival %g, size %g\n',...
@@ -86,11 +126,15 @@ classdef TrafficManager
     end
 end
 
-function consumeEnergy(users,linkType)
+function energy = consumeEnergy(users,linkType,coopType)
 % deduct battery according to burst size, link type and channel at users' 
 % location
 
-    DEBUG = false;    
+    DEBUG = false;
+    if strcmpi(linkType,'d2d') && strcmpi(coopType,'noncoop')
+        error('D2D links are only used in cooperative mode');
+    end   
+    
     numRBs = ceil(users(1).NextBurstSize*8/100); 
     % 12 (subcarriers) * 7 (symbols/slot) * 4 (bits/symbol) * 0.9 (10% used
     % for control) * 1/3 (code rate) = 100 bits/RB
@@ -120,7 +164,14 @@ function consumeEnergy(users,linkType)
             energyConsumed = 10^(transmitPower_dBm/10)*numSubframes*1e-3 + ...
                 SimulationConstants.CircuitryEnergy_mJ;
             
-            users.depleteBattery(energyConsumed);
+            users.depleteBattery(energyConsumed,coopType);
+            switch lower(coopType)
+                case 'coop'
+                    users.AggregateTrafficCoop = users.AggregateTrafficCoop + users.NextBurstSize;
+                case 'noncoop'
+                    users.AggregateTrafficNoncoop = users.AggregateTrafficNoncoop + users.NextBurstSize;
+            end
+            energy = energyConsumed;
 %             if SimulationConstants.LoggingFlag
 %                 energyData = struct('Time',users(1).Clock,...
 %                                     'Event',linkType,...
@@ -150,8 +201,10 @@ function consumeEnergy(users,linkType)
             helperEnergyConsumed = 10^(helperTransmitPower_dBm/10)*numSubframes*1e-3 + ...
                 SimulationConstants.CircuitryEnergy_mJ;
             
-            helpee.depleteBattery(helpeeEnergyConsumed);
-            helper.depleteBattery(helperEnergyConsumed);
+            helpee.depleteBattery(helpeeEnergyConsumed,'coop');
+            helper.depleteBattery(helperEnergyConsumed,'coop');
+            helpee.AggregateTrafficCoop = helpee.AggregateTrafficCoop + helpee.NextBurstSize;
+            energy = [helpeeEnergyConsumed helperEnergyConsumed];
 %             if SimulationConstants.LoggingFlag
 %                 helpeeEnergyData = struct('Time',helpee.Clock,...
 %                                           'Event','Helpee',...
@@ -183,11 +236,13 @@ end
 
 function logData(user)
 % record traffic data
-
+    
     trafficData = struct('Time',user.Clock,...
                          'Event','Traffic',...
-                         'Details',struct('RemainingBattery',user.BatteryLevel,...
+                         'Details',struct('RemainingBatteryCoop',user.BatteryLevelCoop,...
+                                          'RemainingBatteryNoncoop',user.BatteryLevelNoncoop,...
                                           'NextBurstArrival',user.NextBurstInstant,...
-                                          'NextBurstSize',user.NextBurstSize));
+                                          'NextBurstSize',user.NextBurstSize,...
+                                          'Position',user.Position));
     user.Log = [user.Log trafficData];
 end

@@ -5,6 +5,7 @@ function simAnimate(users,simCell)
 
     numUsers = length(users);
     simTime = SimulationConstants.SimTime_h*3600e3/SimulationConstants.SimTimeTick_ms;
+    activeUserList = true(1,numUsers);
 
     figure;    
     hold on
@@ -14,7 +15,7 @@ function simAnimate(users,simCell)
     end
     xlabel('X (meters)');
     ylabel('Y (meters)');
-    title('Radom Duration Mobility');
+    title('Battery Deposit Service');
     xc = linspace(-simCell.Radius,simCell.Radius);
     yc = sqrt(simCell.Radius^2 - xc.^2);
     plot(xc,yc);
@@ -33,7 +34,7 @@ function simAnimate(users,simCell)
         set(ht,'String',cat(2,'Time (sec) = ',num2str(t,4)));
         set(helpCirclePos,'XData',zeros(size(xcHelp)),'YData',zeros(size(ycHelp)));
         set(helpCircleNeg,'XData',zeros(size(xcHelp)),'YData',zeros(size(ycHelp)));
-        for iUser = 1:numUsers
+        for iUser = find(activeUserList)
             if ~isempty(users(iUser).CoopManager.HelpeeID) && users(iUser).CoopManager.HelpeeID==users(iUser).ID
                 set(helpCirclePos,'XData',xcHelp + users(iUser).Position(1),'YData',ycHelp + users(iUser).Position(2));
                 set(helpCircleNeg,'XData',xcHelp + users(iUser).Position(1),'YData',-ycHelp + users(iUser).Position(2));
@@ -41,13 +42,17 @@ function simAnimate(users,simCell)
             users(iUser).clockTick();
             MobilityManager.updatePosition(users(iUser));
             set(vh_user_pos(iUser),'XData',users(iUser).Position(1),'YData',users(iUser).Position(2));
-            if strcmpi(users(iUser).Status,'death')
+            if strcmpi(users(iUser).StatusCoop,'death')
                 set(vh_user_pos(iUser),'color','r');
-            elseif strcmpi(users(iUser).Status,'stopped')
+            elseif strcmpi(users(iUser).StatusCoop,'stopped')
                 set(vh_user_pos(iUser),'color','c');
-            elseif strcmpi(users(iUser).Status,'high')
+            elseif strcmpi(users(iUser).StatusCoop,'high')
                 set(vh_user_pos(iUser),'color','b');
-            end                           
+            end
+            if strcmpi(users(iUser).StatusCoop,'stopped') || ...
+                    (strcmpi(users(iUser).StatusCoop,'death') && strcmpi(users(iUser).StatusNoncoop,'death'))
+                activeUserList(iUser) = false;
+            end
         end
         drawnow; pause(0.05);
     end

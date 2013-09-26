@@ -7,7 +7,8 @@ classdef SimulationConstants
         SimTime_h = SimulationConstants.SimDay_h;
         SimTimeTick_ms = 1e3; % (ms)
         CooperationFlag = true; % enable/disable cooperation
-        LoggingFlag = false; % log events in user's log field
+        LoggingFlag = true; % log events in user's log field
+        DebugFlag = false;
         
         % Traffic model
         InterBurstArrival_s = 30; % (s)

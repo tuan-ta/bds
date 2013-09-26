@@ -1,3 +1,72 @@
+%% view log
+iu = 20;
+user = users(iu);
+for il = 1:length(user.Log)
+    user.Log(il)
+    user.Log(il).Details
+end
+
+%% coop vs noncoop
+deathCntCoop = 0;
+deathCntNoncoop = 0;
+deathClockCoop = zeros(1,length(users));
+deathClockNoncoop = zeros(1,length(users));
+aggregateTrafficCoop = zeros(1,length(users));
+aggregateTrafficNoncoop = zeros(1,length(users));
+for iu = 1:length(users)
+    user = users(iu);
+    if strcmpi(user.StatusCoop,'death')
+        deathCntCoop = deathCntCoop + 1;
+    end
+    if strcmpi(user.StatusNoncoop,'death')
+        deathCntNoncoop = deathCntNoncoop + 1;
+    end
+    deathClockCoop(iu) = user.DeathInstantCoop;
+    deathClockNoncoop(iu) = user.DeathInstantNoncoop;
+    aggregateTrafficCoop(iu) = user.AggregateTrafficCoop;
+    aggregateTrafficNoncoop(iu) = user.AggregateTrafficNoncoop;
+%     for il = 1:length(user.Log)
+%         logEntry = user.Log(il);
+%         if strcmpi(logEntry.Event,'CoopDeath')
+%             deathClockCoop(iu) = logEntry.Time;
+%         end
+%         if strcmpi(logEntry.Event,'NoncoopDeath')
+%             deathClockNoncoop(iu) = logEntry.Time;
+%         end
+%     end
+end
+aliveUsers = [find(isinf(deathClockCoop)) find(isinf(deathClockNoncoop))];
+deathClockCoop(aliveUsers) = [];
+deathClockNoncoop(aliveUsers) = [];
+figure;
+hold on
+h = cdfplot(deathClockCoop);
+set(h,'color','r');
+h = cdfplot(deathClockNoncoop);
+set(h,'color','b');
+title('CDF of usage time');
+legend('Coop','Noncoop','location','east');
+
+figure;
+hist(deathClockCoop,100);
+h = findobj(gca,'type','patch');
+set(h,'FaceColor','r','EdgeColor','w','FaceAlpha',0.75);
+hold on
+hist(deathClockNoncoop,100);
+h1 = findobj(gca,'type','patch');
+set(h1,'FaceAlpha',0.75);
+title('Histogram of usage time');
+legend('Coop','Noncoop','location','east');
+
+figure;
+hold on
+h = cdfplot(aggregateTrafficCoop);
+set(h,'color','r');
+h = cdfplot(aggregateTrafficNoncoop);
+set(h,'color','b');
+title('CDF of aggregate data');
+legend('Coop','Noncoop','location','east');
+
 %%
 fn = sprintf('data/coop_%gh_%gms_%gB_%gmJ_0101_3.mat',...
     SimulationConstants.SimTime_h,...
@@ -29,7 +98,7 @@ deathCnt = 0;
 distanceOfDeathUE =  zeros(1,length(users));
 clockOfDeathUE = zeros(1,length(users));
 for iu = 1:length(users)
-    if strcmpi(users(iu).Status,'death')
+    if strcmpi(users(iu).StatusCoop,'death')
         deathCnt = deathCnt + 1;
         distanceOfDeathUE(deathCnt) = norm(users(iu).Position);
         clockOfDeathUE(deathCnt) = users(iu).Clock;
@@ -128,10 +197,10 @@ deathClock = zeros(1,length(users));
 stoppedBattery = zeros(1,length(users));
 for iu = 1:numUsers
     user = users(iu);
-    if strcmpi(user.Status,'death')
+    if strcmpi(user.StatusCoop,'death')
         deathCnt = deathCnt + 1;
         deathClock(deathCnt) = user.Clock-user.StartInstant;
-    elseif strcmpi(user.Status,'stopped')
+    elseif strcmpi(user.StatusCoop,'stopped')
         stoppedCnt = stoppedCnt + 1;
         stoppedBattery(stoppedCnt) = user.BatteryLevel;
     end
@@ -156,10 +225,10 @@ for ii = 1:5
     stoppedBattery = zeros(1,length(users));
     for iu = 1:numUsers
         user = users(iu);
-        if strcmpi(user.Status,'death')
+        if strcmpi(user.StatusCoop,'death')
             deathCnt = deathCnt + 1;
             deathClock(deathCnt) = user.Clock-user.StartInstant;
-        elseif strcmpi(user.Status,'stopped')
+        elseif strcmpi(user.StatusCoop,'stopped')
             stoppedCnt = stoppedCnt + 1;
             stoppedBattery(stoppedCnt) = user.BatteryLevel;
         end
@@ -176,10 +245,10 @@ deathClock = zeros(1,length(users));
 stoppedBattery = zeros(1,length(users));
 for iu = 1:numUsers
     user = users(iu);
-    if strcmpi(user.Status,'death')
+    if strcmpi(user.StatusCoop,'death')
         deathCnt = deathCnt + 1;
         deathClock(deathCnt) = user.Clock-user.StartInstant;
-    elseif strcmpi(user.Status,'stopped')
+    elseif strcmpi(user.StatusCoop,'stopped')
         stoppedCnt = stoppedCnt + 1;
         stoppedBattery(stoppedCnt) = user.BatteryLevel;
     end

@@ -3,7 +3,8 @@ classdef LTEUser < handle
 
     properties (SetAccess = private)
         ID
-        BatteryLevel        
+        BatteryLevelNoncoop
+        BatteryLevelCoop
         TrafficModel
         MobilityModel
         Clock
@@ -15,12 +16,17 @@ classdef LTEUser < handle
     end
     
     properties
-        Status = 'inactive'; 
+        StatusCoop = 'inactive'; 
             % inactive: before start instant
             % low: needing help
             % high: can help
             % medium: neither
             % stopped: after stop instant
+            % death
+        StatusNoncoop = 'inactive';
+            % inactive: before start instant
+            % active
+            % stopped
             % death
         % traffic-related properties
         NextBurstInstant = 0;
@@ -31,6 +37,11 @@ classdef LTEUser < handle
         Direction = 0; % (rad)
         WalkTimeMarker = 0; % keeping track of last time instant that position was updated
         Log
+        WaitingForHelpAssignmentFlag = false;
+        DeathInstantCoop = Inf;
+        DeathInstantNoncoop = Inf;
+        AggregateTrafficCoop = 0;
+        AggregateTrafficNoncoop = 0;
     end
     
     events
@@ -41,7 +52,8 @@ classdef LTEUser < handle
     methods
         function u = LTEUser(id)
             u.ID = id;
-            u.BatteryLevel = SimulationConstants.BatteryCapacity_mJ;
+            u.BatteryLevelCoop = SimulationConstants.BatteryCapacity_mJ;
+            u.BatteryLevelNoncoop = SimulationConstants.BatteryCapacity_mJ;
             u.Clock = 0;
             u.Position = [0 0];
             u.TrafficModel = LTETrafficModel(SimulationConstants.InterBurstArrival_s,...
@@ -54,7 +66,8 @@ classdef LTEUser < handle
         end
         
         function clockTick(u)
-            if strcmpi(u.Status,'death') || strcmpi(u.Status,'stopped')
+            if (strcmpi(u.StatusCoop,'death') || strcmpi(u.StatusCoop,'stopped')) && ...
+                    (strcmpi(u.StatusNoncoop,'death') || strcmpi(u.StatusNoncoop,'stopped'))
                 return            
             end
             
@@ -62,15 +75,21 @@ classdef LTEUser < handle
                 u.Clock = u.Clock + 1;
                 return
             elseif u.Clock == u.StartInstant % bootstrap for traffic manager and mobility manager
-                u.Status = 'high';
+                u.StatusCoop = 'high';
+                u.StatusNoncoop = 'active';
                 u.NextBurstInstant = u.StartInstant;
                 u.NextMovementInstant = u.StartInstant;
             end
             
-            if u.CoopManager.HelpFlag && strcmpi(u.Status,'high')
+            if u.CoopManager.HelpFlag && strcmpi(u.StatusCoop,'high')
                 MobilityManager.updatePosition(u);
                 if norm(u.Position-u.CoopManager.HelpeePos) <= SimulationConstants.HelpRange_m
                     u.CoopManager.registerHelper(u);
+                    
+                    if SimulationConstants.DebugFlag
+                        fprintf('Clock: %g, Helpee: %g, potential helper: %g, distance: %g\n',...
+                            u.Clock,u.CoopManager.HelpeeID,u.ID,norm(u.Position-u.CoopManager.HelpeePos));
+                    end
                 end
             end
             
@@ -83,7 +102,8 @@ classdef LTEUser < handle
             end
             u.Clock = u.Clock + 1;
             if u.Clock == u.StopInstant
-                u.Status = 'stopped';
+                u.StatusCoop = 'stopped';
+                u.StatusNoncoop = 'stopped';
             end
         end
         
@@ -99,8 +119,15 @@ classdef LTEUser < handle
             u.Position = pos;
         end
         
-        function depleteBattery(u,bat)
-            u.BatteryLevel = u.BatteryLevel - bat;
+        function depleteBattery(u,bat,type)
+            switch lower(type)
+                case 'coop'
+                    u.BatteryLevelCoop = u.BatteryLevelCoop - bat;
+                case 'noncoop'
+                    u.BatteryLevelNoncoop = u.BatteryLevelNoncoop - bat;
+                otherwise
+                    error('Type has to be either coop or noncoop.');
+            end
         end
         
         function assignParticipateInstants(u,start,stop)
