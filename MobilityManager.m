@@ -21,7 +21,7 @@ classdef MobilityManager
                 pause = random('unif',user.MobilityModel.PauseInterval(1),...
                     user.MobilityModel.PauseInterval(2));
                 user.NextMovementInstant = user.NextMovementInstant + ...
-                    round(pause*1000/SimulationConstants.SimTimeTick_ms);
+                    max(round(pause*1000/SimulationConstants.SimTimeTick_ms),1);
                 user.Speed = 0;
                 MobilityManager.updatePosition(user);
             end

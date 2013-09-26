@@ -1,3 +1,6 @@
 *.asv
+*.m~
 data/
 matlab_fig/
+.dropbox
+desktop.ini

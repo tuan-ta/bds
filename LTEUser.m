@@ -10,10 +10,18 @@ classdef LTEUser < handle
         Position
         Cell
         CoopManager
+        StartInstant
+        StopInstant
     end
     
     properties
-        Status = 'high'; % low (needing help), high (can help), medium (neither), death
+        Status = 'inactive'; 
+            % inactive: before start instant
+            % low: needing help
+            % high: can help
+            % medium: neither
+            % stopped: after stop instant
+            % death
         % traffic-related properties
         NextBurstInstant = 0;
         NextBurstSize = 0; % (bytes)
@@ -46,11 +54,20 @@ classdef LTEUser < handle
         end
         
         function clockTick(u)
-            if strcmpi(u.Status,'death')
+            if strcmpi(u.Status,'death') || strcmpi(u.Status,'stopped')
                 return            
             end
             
-            if strcmpi(u.Status,'high') && u.CoopManager.HelpFlag 
+            if u.Clock < u.StartInstant
+                u.Clock = u.Clock + 1;
+                return
+            elseif u.Clock == u.StartInstant % bootstrap for traffic manager and mobility manager
+                u.Status = 'high';
+                u.NextBurstInstant = u.StartInstant;
+                u.NextMovementInstant = u.StartInstant;
+            end
+            
+            if u.CoopManager.HelpFlag && strcmpi(u.Status,'high')
                 MobilityManager.updatePosition(u);
                 if norm(u.Position-u.CoopManager.HelpeePos) <= SimulationConstants.HelpRange_m
                     u.CoopManager.registerHelper(u);
@@ -65,6 +82,9 @@ classdef LTEUser < handle
                 notify(u,'NextMovementEvent');
             end
             u.Clock = u.Clock + 1;
+            if u.Clock == u.StopInstant
+                u.Status = 'stopped';
+            end
         end
         
         function assignCell(u,C)
@@ -81,6 +101,11 @@ classdef LTEUser < handle
         
         function depleteBattery(u,bat)
             u.BatteryLevel = u.BatteryLevel - bat;
+        end
+        
+        function assignParticipateInstants(u,start,stop)
+            u.StartInstant = ceil(start);
+            u.StopInstant = ceil(stop);
         end
     end
 end

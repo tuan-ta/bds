@@ -2,18 +2,20 @@ classdef SimulationConstants
 % Constants used in simulation
 
     properties (Constant)
-        SimTime_h = 10;%100/3600; % (h)
-        SimTimeTick_ms = 1000; % (ms)
-        CooperationFlag = false; % enable/disable cooperation
+        SimDay_h = 1;
+        SimExpectedUsage_h = 1/3;
+        SimTime_h = SimulationConstants.SimDay_h;
+        SimTimeTick_ms = 1e3; % (ms)
+        CooperationFlag = true; % enable/disable cooperation
         LoggingFlag = false; % log events in user's log field
         
         % Traffic model
-        InterBurstArrival_s = [30 300]; % (s)
-        MeanBurstSize_bytes = 9000; % (bytes)
+        InterBurstArrival_s = 30; % (s)
+        MeanBurstSize_bytes = 7800; % (bytes)
         
         % Mobility model
-        SpeedInterval_mps = [5 10]; % (m/s)
-        PauseInterval_s = [0 0]; % (s)
+        SpeedInterval_mps = [0.1 3]; % (m/s)
+        PauseInterval_s = [0 300]; % (s)
         WalkInterval_s = [30 300]; % (s)
         
         % Channel model and battery consumption parameters
@@ -28,7 +30,7 @@ classdef SimulationConstants
         %   - InterBurstArrival: 30 s (should be the same as above)
         CircuitryEnergy_mJ = 15; % 3mW * 5s = 15mJ
         
-        BatteryCapacity_mJ = 5e3; % (mJ)
+        BatteryCapacity_mJ = 6e3; % (mJ)
         BasePowerU2E_dBm = -69; % -126 to 24 dBm (LTE book pg. 413)
             % An UE in the middle of the cell (250m) spends 3x power per RB
             % compared to idle (1*3 = 3mW)
@@ -44,9 +46,11 @@ classdef SimulationConstants
         NumWallsIndoorNLOS = 1;
         
         % Helper selection algorithm
-        HighThreshold = 0.1;
-        LowThreshold = 0.1;
+        HighThreshold = 0.3;
+        LowThreshold = 0.3;
         HelpRange_m = 30; % (m)
-        PathlossThreshold_dBm = 110;
+        PathlossThreshold_dBm = 110; 
+            % UE only requests for help if its path loss is greater than
+            % this threshold
     end
 end

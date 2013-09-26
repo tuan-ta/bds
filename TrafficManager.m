@@ -29,8 +29,10 @@ classdef TrafficManager
                         helper
                     end
                 else % somebody else has already requested help 
-                     % #TODO implement multiple help requests
-                    consumeEnergy(user,'U2E');
+                     % wait until next round
+                    user.NextBurstInstant = user.NextBurstInstant + 1;
+                    return
+%                     consumeEnergy(user,'U2E');
                 end                   
             else
                 consumeEnergy(user,'U2E');

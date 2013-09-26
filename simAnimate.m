@@ -10,7 +10,7 @@ function simAnimate(users,simCell)
     hold on
     plot(0,0,'rv','MarkerFaceColor','r');
     for iUser = 1:numUsers
-        vh_user_pos(iUser) = plot(users(iUser).Position(1),users(iUser).Position(1),'*','color',[0.3 0.3 1]);
+        vh_user_pos(iUser) = plot(users(iUser).Position(1),users(iUser).Position(1),'*','color','y');
     end
     xlabel('X (meters)');
     ylabel('Y (meters)');
@@ -43,6 +43,10 @@ function simAnimate(users,simCell)
             set(vh_user_pos(iUser),'XData',users(iUser).Position(1),'YData',users(iUser).Position(2));
             if strcmpi(users(iUser).Status,'death')
                 set(vh_user_pos(iUser),'color','r');
+            elseif strcmpi(users(iUser).Status,'stopped')
+                set(vh_user_pos(iUser),'color','c');
+            elseif strcmpi(users(iUser).Status,'high')
+                set(vh_user_pos(iUser),'color','b');
             end                           
         end
         drawnow; pause(0.05);

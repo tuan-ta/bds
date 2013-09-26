@@ -46,6 +46,8 @@ classdef ChannelManager
                     d = norm(users(1).Position - users(2).Position);
                     if d > 100
                         warning('WINNER II indoor channel model doesn''t support distance greater than 100m. The current distance is %g.',d);
+                        users(1)
+                        users(2)
                     end
                     fc = SimulationConstants.CarrierFrequency_Hz;
                     if d < 2.5
