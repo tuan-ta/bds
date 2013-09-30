@@ -6,4 +6,4 @@ fig/
 .dropbox
 desktop.ini
 log*.txt
-analyzeData.m
+analyze.m

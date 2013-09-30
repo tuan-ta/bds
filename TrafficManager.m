@@ -1,6 +1,6 @@
 classdef TrafficManager
 % TrafficManager class provides methods that implement a listener for the
-% event NextBurstArrives of LTEUser object. At event trigger,
+% event BurstArrives of LTEUser object. At event trigger,
 % TrafficManager generates the next burst arrival instant and size.
 % TrafficManager also deducts the amount of energy consumed by the current
 % burst from the UE's battery level.
