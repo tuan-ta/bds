@@ -52,8 +52,10 @@ classdef LTEUser < handle
     methods
         function u = LTEUser(id)
             u.ID = id;
-            u.BatteryLevelCoop = SimulationConstants.BatteryCapacity_mJ;
-            u.BatteryLevelNoncoop = SimulationConstants.BatteryCapacity_mJ;
+            initBatteryLevel = SimulationConstants.BatteryCapacity_mJ*...
+                random('unif',SimulationConstants.LowThreshold,1);
+            u.BatteryLevelCoop = initBatteryLevel;
+            u.BatteryLevelNoncoop = initBatteryLevel;
             u.Clock = 0;
             u.Position = [0 0];
             u.TrafficModel = LTETrafficModel(SimulationConstants.InterBurstArrival_s,...

@@ -1,6 +1,9 @@
 *.asv
 *.m~
+*.sh
 data/
-matlab_fig/
+fig/
 .dropbox
 desktop.ini
+log*.txt
+analyzeData.m

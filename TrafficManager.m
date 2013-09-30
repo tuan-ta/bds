@@ -139,6 +139,7 @@ function energy = consumeEnergy(users,linkType,coopType)
     % 12 (subcarriers) * 7 (symbols/slot) * 4 (bits/symbol) * 0.9 (10% used
     % for control) * 1/3 (code rate) = 100 bits/RB
     if numRBs == 0
+        energy = 0;
         return
     end    
     numSubframes = ceil(numRBs/SimulationConstants.NumRBsPerSubframe);

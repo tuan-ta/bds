@@ -46,7 +46,7 @@ function simAnimate(users,simCell)
                 set(vh_user_pos(iUser),'color','r');
             elseif strcmpi(users(iUser).StatusCoop,'stopped')
                 set(vh_user_pos(iUser),'color','c');
-            elseif strcmpi(users(iUser).StatusCoop,'high')
+            elseif strcmpi(users(iUser).StatusNoncoop,'active')
                 set(vh_user_pos(iUser),'color','b');
             end
             if strcmpi(users(iUser).StatusCoop,'stopped') || ...

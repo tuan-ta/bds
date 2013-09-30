@@ -48,7 +48,10 @@ classdef MobilityManager
             prePos = user.Position;
             speed = user.Speed;
             direction = user.Direction;
-            duration = user.Clock - user.WalkTimeMarker;
+            duration = (user.Clock - user.WalkTimeMarker)*SimulationConstants.SimTimeTick_ms/1000;
+            if duration < 0
+                error('Negative duration');
+            end
             cell = user.Cell;
 
             [dx dy] = pol2cart(direction,speed*duration);

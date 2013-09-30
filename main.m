@@ -1,9 +1,12 @@
 clc
-clear all
 clear classes
 
 clk = clock;
-rng(round(79*clk(4) + 37*clk(5) + clk(6)));
+randseed = round(79*clk(4) + 37*clk(5) + clk(6));
+
+diary(sprintf('log_%g.txt',randseed));
+SimulationConstants
+rng(randseed);
 
 %% create cell
 macroCell = LTECell(500,'circular');
@@ -43,4 +46,10 @@ for t = 1:simTime
 end
 toc
 
+simulConstants = SimulationConstants.toStruct();
+
+save(sprintf('data/24h_300e3mJ_random_starting_battery_from_lowthreshold_%g.mat',randseed));
+
 % simAnimate(users,macroCell);
+
+diary off
