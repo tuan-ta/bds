@@ -1,3 +1,6 @@
+bds
+===
+
 # Battery Deposit Service simulator
 
 This simulator intends to verify the performance of the Battery Deposit Service (BDS) introduced in [paper].
@@ -28,7 +31,7 @@ end
 
 %% run simulation
 simTime = SimulationConstants.SimTime_h*3600e3/SimulationConstants.SimTimeTick_ms;
-for t = 1:simTime    
+for t = 1:simTime
     for iUser = 1:numUsers
         user = users(iUser);
         user.clockTick();
@@ -69,7 +72,7 @@ Class for a cell. This class has a method to provide a random position within th
 
 ### TrafficManager
 
-Listens to the 'BurstArrives' event. Once the event is triggered, TrafficManager simulates the consumption of the current burst using path loss values from the ChannelManager and cooperation setting from the CooperationManager. TrafficManager then generates the next data burst (arrival instant and burst size). 
+Listens to the 'BurstArrives' event. Once the event is triggered, TrafficManager simulates the consumption of the current burst using path loss values from the ChannelManager and cooperation setting from the CooperationManager. TrafficManager then generates the next data burst (arrival instant and burst size).
 
 ### ChannelManager
 
@@ -86,3 +89,4 @@ Implements helper selection algorithm.
 ### SimulationConstants
 
 Class to hold constants used in the simulation.
+
