@@ -36,12 +36,16 @@ classdef LTEUser < handle
         Speed = 0; % (m/s)
         Direction = 0; % (rad)
         WalkTimeMarker = 0; % keeping track of last time instant that position was updated
-        Log
+        Log % each log entry is a 6x1 column vector - Matlab is more efficient with vectors than structs
+            %   1. Data ownership flag (1: own data, 0: helping somebody else)
+            %   2. Time instant (in simulation tick)
+            %   3. Burst size (in bytes)
+            %   4. Remaining battery for noncoop (in mJ)
+            %   5. Remaining battery for coop (in mJ)
+            %   6. ID of the other UE for D2D if coop happened, 0 otherwise
         WaitingForHelpAssignmentFlag = false;
         DeathInstantCoop = Inf;
-        DeathInstantNoncoop = Inf;
-        AggregateTrafficCoop = 0;
-        AggregateTrafficNoncoop = 0;
+        DeathInstantNoncoop = Inf;        
     end
     
     events

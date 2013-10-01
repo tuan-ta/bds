@@ -2,7 +2,7 @@ clc
 clear classes
 
 clk = clock;
-randseed = round(79*clk(4) + 37*clk(5) + clk(6));
+randseed = round(79*clk(4) + 37*clk(5) + clk(6))
 
 diary(sprintf('log_%g.txt',randseed));
 SimulationConstants

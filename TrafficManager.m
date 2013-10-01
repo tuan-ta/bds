@@ -11,17 +11,11 @@ classdef TrafficManager
             
             % consume battery for current burst
             %% noncoop
-            if ~(strcmpi(user.StatusNoncoop,'death') || user.WaitingForHelpAssignmentFlag)
+            if ~strcmpi(user.StatusNoncoop,'death') && ~user.WaitingForHelpAssignmentFlag
                 consumeEnergy(user,'U2E','Noncoop');                
                 if user.BatteryLevelNoncoop <= 0
                     user.StatusNoncoop = 'death';
-                    user.DeathInstantNoncoop = user.Clock;
-                    
-                    if SimulationConstants.LoggingFlag
-                        user.Log = [user.Log struct('Time',user.Clock,...
-                                                    'Event','NoncoopDeath',...
-                                                    'Details',[])];
-                    end
+                    user.DeathInstantNoncoop = user.Clock;                    
                 end
             end
             
@@ -40,18 +34,18 @@ classdef TrafficManager
                     elseif user.CoopManager.HelpeeID == user.ID % help granted to this UE
                         helper = user.CoopManager.assignHelper(user);
                         if ~isempty(helper)
-                            energy = consumeEnergy([user helper],'D2D','Coop');
-                            
-                            if SimulationConstants.LoggingFlag
-                                user.Log = [user.Log struct('Time',user.Clock,...
-                                                            'Event','Coop',...
-                                                            'Details',struct('Helpee',user.ID,...
-                                                                             'Helper',helper.ID,...
-                                                                             'HelpeePos',user.Position,...
-                                                                             'HelperPos',helper.Position,...
-                                                                             'HelpeeEnergyConsumed',energy(1),...
-                                                                             'HelperEnergyConsumed',energy(2)))];
-                            end
+                            consumeEnergy([user helper],'D2D','Coop');
+%                             
+%                             if SimulationConstants.LoggingFlag
+%                                 user.Log = [user.Log struct('Time',user.Clock,...
+%                                                             'Event','Coop',...
+%                                                             'Details',struct('Helpee',user.ID,...
+%                                                                              'Helper',helper.ID,...
+%                                                                              'HelpeePos',user.Position,...
+%                                                                              'HelperPos',helper.Position,...
+%                                                                              'HelpeeEnergyConsumed',energy(1),...
+%                                                                              'HelperEnergyConsumed',energy(2)))];
+%                             end
                         else
                             consumeEnergy(user,'U2E','Coop');
                         end
@@ -81,14 +75,18 @@ classdef TrafficManager
                 else
                     user.StatusCoop = 'death';
                     user.DeathInstantCoop = user.Clock;
-                    
-                    if SimulationConstants.LoggingFlag
-                        user.Log = [user.Log struct('Time',user.Clock,...
-                                                    'Event','CoopDeath',...
-                                                    'Details',[])];
-                    end                    
                 end
             end
+            
+            if SimulationConstants.LoggingFlag
+                logEntry = [1; user.Clock; user.NextBurstSize; user.BatteryLevelNoncoop; user.BatteryLevelCoop; 0];
+                if exist('helper','var') && ~isempty(helper)
+                    logEntry(6) = helper.ID;
+                    logEntryHelper = [0; helper.Clock; user.NextBurstSize; helper.BatteryLevelNoncoop; helper.BatteryLevelCoop; user.ID];
+                    helper.Log = [helper.Log logEntryHelper];
+                end
+                user.Log = [user.Log logEntry];
+            end     
             
             %% schedule the next burst
             if strcmpi(user.TrafficModel.InterArrivalType,'geometric')
@@ -108,9 +106,9 @@ classdef TrafficManager
                     user.NextBurstSize = nextBurstSize;
                 end
                 
-                if SimulationConstants.LoggingFlag
-                    logData(user);
-                end                  
+%                 if SimulationConstants.LoggingFlag
+%                     logData(user);
+%                 end                  
                 
                 if DEBUG
                     fprintf('Data for user %g, next arrival %g, size %g\n',...
@@ -165,13 +163,7 @@ function energy = consumeEnergy(users,linkType,coopType)
             energyConsumed = 10^(transmitPower_dBm/10)*numSubframes*1e-3 + ...
                 SimulationConstants.CircuitryEnergy_mJ;
             
-            users.depleteBattery(energyConsumed,coopType);
-            switch lower(coopType)
-                case 'coop'
-                    users.AggregateTrafficCoop = users.AggregateTrafficCoop + users.NextBurstSize;
-                case 'noncoop'
-                    users.AggregateTrafficNoncoop = users.AggregateTrafficNoncoop + users.NextBurstSize;
-            end
+            users.depleteBattery(energyConsumed,coopType);           
             energy = energyConsumed;
 %             if SimulationConstants.LoggingFlag
 %                 energyData = struct('Time',users(1).Clock,...
@@ -204,7 +196,6 @@ function energy = consumeEnergy(users,linkType,coopType)
             
             helpee.depleteBattery(helpeeEnergyConsumed,'coop');
             helper.depleteBattery(helperEnergyConsumed,'coop');
-            helpee.AggregateTrafficCoop = helpee.AggregateTrafficCoop + helpee.NextBurstSize;
             energy = [helpeeEnergyConsumed helperEnergyConsumed];
 %             if SimulationConstants.LoggingFlag
 %                 helpeeEnergyData = struct('Time',helpee.Clock,...
