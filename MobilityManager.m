@@ -98,7 +98,7 @@ function v_im = pol_tangent_image(b, v, r)
 % find the mirror image v_im of vector v about the tangent at point b on
 % the circle
 
-    if abs(norm(b)-r)>1e-8
+    if abs(norm(b)-r)>1e-6
         error('b must be on the cirle.');
     end
 

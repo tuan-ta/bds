@@ -13,7 +13,27 @@ macroCell = LTECell(500,'circular');
 cooperationManager = CooperationManager();
 
 %% create users
-% pos = [50 0];
+% There are 3 parameters that need to be initialized
+%   1. UE location: uniform is a good choice
+%   2. UE battery
+%   3. UE data rate
+%
+%   UE battery and UE data rate are "dual" of each other. Fixing the
+%   battery capacity, high initial battery is equivalent to low data rate;
+%   low initial battery is equivalent to high data rate.
+%
+%   In the paper, battery is initialized uniform random from low
+%   cooperative threshold to capacity. This allows all UEs full chance to
+%   cooperate. Data rate is the same for all UEs.
+%
+%   An alternative way would be initializing battery to full capacity, and
+%   choose data rate from a distribution.
+%
+%   Yet another alternative that was experimented with is to initialize UEs
+%   at different time and keep track of their expected usage time. The
+%   problem with this method is that since UEs wake up at different times,
+%   the number cooperative UEs is small.
+
 numUsers = 500;
 % startInstants = random('unif',0,SimulationConstants.SimDay_h*3600e3/SimulationConstants.SimTimeTick_ms,...
 %     1,numUsers);
@@ -24,7 +44,6 @@ for iUser = 1:numUsers
     user = LTEUser(iUser);
     user.assignCell(macroCell);
     user.assignPosition(macroCell.randomPosition());
-%     user.assignPosition(pos + 10*(rand(1,2)-0.5));
     user.assignCoopManager(cooperationManager);
     user.assignParticipateInstants(startInstants(iUser),stopInstants(iUser));
     users(iUser) = user;
@@ -48,7 +67,7 @@ toc
 
 simulConstants = SimulationConstants.toStruct();
 
-save(sprintf('data/24h_300e3mJ_random_starting_battery_from_lowthreshold_%g.mat',randseed));
+save(sprintf('data/24h_300e3mJ_multiple_user_classes_%g.mat',randseed));
 
 % simAnimate(users,macroCell);
 
