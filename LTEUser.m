@@ -56,20 +56,20 @@ classdef LTEUser < handle
     methods
         function u = LTEUser(id)
             u.ID = id;
-            initBatteryLevel = SimulationConstants.BatteryCapacity_mJ;
-%             initBatteryLevel = SimulationConstants.BatteryCapacity_mJ*...
-%                 random('unif',SimulationConstants.LowThreshold,1);
+%             initBatteryLevel = SimulationConstants.BatteryCapacity_mJ;
+            initBatteryLevel = SimulationConstants.BatteryCapacity_mJ*...
+                random('unif',SimulationConstants.LowThreshold,1);
             u.BatteryLevelCoop = initBatteryLevel;
             u.BatteryLevelNoncoop = initBatteryLevel;
             u.Clock = 0;
             u.Position = [0 0];
             % usage rate varies from "day" to "day"
-            numRates = length(SimulationConstants.InterBurstArrival_s);
-            rate = SimulationConstants.InterBurstArrival_s(ceil(numRates*random('unif',0,1)));
-            u.TrafficModel = LTETrafficModel(rate,...
-                                             SimulationConstants.MeanBurstSize_bytes);            
-%             u.TrafficModel = LTETrafficModel(SimulationConstants.InterBurstArrival_s,...
-%                                              SimulationConstants.MeanBurstSize_bytes);
+%             numRates = length(SimulationConstants.InterBurstArrival_s);
+%             rate = SimulationConstants.InterBurstArrival_s(ceil(numRates*random('unif',0,1)));
+%             u.TrafficModel = LTETrafficModel(rate,...
+%                                              SimulationConstants.MeanBurstSize_bytes);            
+            u.TrafficModel = LTETrafficModel(SimulationConstants.InterBurstArrival_s,...
+                                             SimulationConstants.MeanBurstSize_bytes);
             u.MobilityModel = LTEMobilityModel(SimulationConstants.SpeedInterval_mps,...
                                                SimulationConstants.PauseInterval_s,...
                                                SimulationConstants.WalkInterval_s);

@@ -11,7 +11,7 @@ classdef SimulationConstants
         DebugFlag = false;
         
         % Traffic model
-        InterBurstArrival_s = 30*[1:5]; % (s)
+        InterBurstArrival_s = 30; % (s)
         MeanBurstSize_bytes = 7800; % (bytes)
         
         % Mobility model
@@ -31,7 +31,7 @@ classdef SimulationConstants
         %   - InterBurstArrival: 30 s (should be the same as above)
         CircuitryEnergy_mJ = 15; % 3mW * 5s = 15mJ
         
-        BatteryCapacity_mJ = 20e3; % (mJ)
+        BatteryCapacity_mJ = 300e3; % (mJ)
         BasePowerU2E_dBm = -69; % -126 to 24 dBm (LTE book pg. 413)
             % An UE in the middle of the cell (250m) spends 3x power per RB
             % compared to idle (1*3 = 3mW)

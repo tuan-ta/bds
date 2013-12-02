@@ -2,11 +2,12 @@ clc
 clear classes
 
 clk = clock;
-randseed = round(79*clk(4) + 37*clk(5) + clk(6))
+% randseed = round(79*clk(4) + 37*clk(5) + clk(6))
 
-diary(sprintf('log_%g.txt',randseed));
-SimulationConstants
-rng(randseed);
+% diary(sprintf('log_%g.txt',randseed));
+% SimulationConstants
+% rng(randseed);
+rng('shuffle');
 
 %% create cell
 macroCell = LTECell(500,'circular');
@@ -67,8 +68,9 @@ toc
 
 simulConstants = SimulationConstants.toStruct();
 
-save(sprintf('data/24h_300e3mJ_multiple_user_classes_%g.mat',randseed));
+% save(sprintf('data/24h_300e3mJ_multiple_user_classes_%g.mat',randseed));
 
+% run simulation with animation
 % simAnimate(users,macroCell);
 
-diary off
+% diary off
