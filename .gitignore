@@ -3,8 +3,11 @@
 *.sh
 data/
 fig/
+log/
 .dropbox
 desktop.ini
 log*.txt
 analyze.m
+analyzeNew.m
 figGen.m
+pathlossNoShadowing.m

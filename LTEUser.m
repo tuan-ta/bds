@@ -13,6 +13,8 @@ classdef LTEUser < handle
         CoopManager
         StartInstant
         StopInstant
+        UtilType
+        PathlossU2E
     end
     
     properties
@@ -45,7 +47,7 @@ classdef LTEUser < handle
             %   6. ID of the other UE for D2D if coop happened, 0 otherwise
         WaitingForHelpAssignmentFlag = false;
         DeathInstantCoop = Inf;
-        DeathInstantNoncoop = Inf;        
+        DeathInstantNoncoop = Inf;
     end
     
     events
@@ -56,9 +58,9 @@ classdef LTEUser < handle
     methods
         function u = LTEUser(id)
             u.ID = id;
-%             initBatteryLevel = SimulationConstants.BatteryCapacity_mJ;
-            initBatteryLevel = SimulationConstants.BatteryCapacity_mJ*...
-                random('unif',SimulationConstants.LowThreshold,1);
+            initBatteryLevel = SimulationConstants.BatteryCapacity_mJ;
+%             initBatteryLevel = SimulationConstants.BatteryCapacity_mJ*...
+%                 random('unif',SimulationConstants.LowThreshold,1);
             u.BatteryLevelCoop = initBatteryLevel;
             u.BatteryLevelNoncoop = initBatteryLevel;
             u.Clock = 0;
@@ -75,6 +77,7 @@ classdef LTEUser < handle
                                                SimulationConstants.WalkInterval_s);
             TrafficManager.addUser(u);
             MobilityManager.addUser(u);
+            u.UtilType = SimulationConstants.UtilityType;
         end
         
         function clockTick(u)
@@ -86,19 +89,23 @@ classdef LTEUser < handle
             if u.Clock < u.StartInstant
                 u.Clock = u.Clock + 1;
                 return
-            elseif u.Clock == u.StartInstant % bootstrap for traffic manager and mobility manager
-                u.StatusCoop = 'high';
+            elseif u.Clock == u.StartInstant % bootstrap for traffic manager and mobility manager                
                 u.StatusNoncoop = 'active';
+                u.updatePathloss();
+                u.updateCoopStatus();
                 u.NextBurstInstant = u.StartInstant;
                 u.NextMovementInstant = u.StartInstant;
             end
             
             if u.CoopManager.HelpFlag && strcmpi(u.StatusCoop,'high')
+                % Using previous value of utility to decide whether or not
+                % to help. This avoids computing utility every time there's
+                % a help request.
                 MobilityManager.updatePosition(u);
                 if norm(u.Position-u.CoopManager.HelpeePos) <= SimulationConstants.HelpRange_m
                     u.CoopManager.registerHelper(u);
                     
-                    if SimulationConstants.DebugFlag
+                    if SimulationConstants.DebuggingFlag
                         fprintf('Clock: %g, Helpee: %g, potential helper: %g, distance: %g\n',...
                             u.Clock,u.CoopManager.HelpeeID,u.ID,norm(u.Position-u.CoopManager.HelpeePos));
                     end
@@ -131,6 +138,10 @@ classdef LTEUser < handle
             u.Position = pos;
         end
         
+        function updatePathloss(u)
+            u.PathlossU2E = ChannelManager.pathloss(u,'U2E');
+        end
+        
         function depleteBattery(u,bat,type)
             switch lower(type)
                 case 'coop'
@@ -146,5 +157,71 @@ classdef LTEUser < handle
             u.StartInstant = ceil(start);
             u.StopInstant = ceil(stop);
         end
+        
+        function updateNoncoopStatus(u)
+            if u.BatteryLevelNoncoop <= 0
+                u.StatusNoncoop = 'death';
+                u.DeathInstantNoncoop = u.Clock;                    
+            end
+        end
+        
+        function updateCoopStatus(u)
+            if u.BatteryLevelCoop <= 0
+                u.StatusCoop = 'death';
+                u.DeathInstantCoop = u.Clock;
+                return
+            end
+            
+            util = computeUtility(u);
+            if util >= SimulationConstants.HighThreshold
+                u.StatusCoop = 'high';
+            elseif util >= SimulationConstants.LowThreshold
+                u.StatusCoop = 'medium';
+            else
+                u.StatusCoop = 'low';
+            end
+        end
     end
 end
+
+function util = computeUtility(user)
+% compute utility value based on user's utility type
+
+    if strcmpi(user.UtilType,'battery')
+        util = user.BatteryLevelCoop/SimulationConstants.BatteryCapacity_mJ;
+        return
+    end
+
+    % compute unit energy consumption based on user's path loss. This is rho_0
+    % in the paper
+    alpha = SimulationConstants.PathlossCompensationFactor;
+    P0 = SimulationConstants.BasePowerU2E_dBm;
+    Pmax = SimulationConstants.MaxPower_dBm + 10*log10(SimulationConstants.NumRBsPerSubframe);
+    unitPower_dBm = min(Pmax, P0 + 10*log10(SimulationConstants.NumRBsPerSubframe) + ...
+                alpha*user.PathlossU2E);
+    unitEnergy_mJ = 10^(unitPower_dBm/10)*1e-3;
+    
+    b = floor(user.BatteryLevelCoop/unitEnergy_mJ);
+    t = user.StopInstant - user.Clock;
+    if ~strcmpi(user.TrafficModel.InterArrivalType,'geometric')||...
+            ~strcmpi(user.TrafficModel.DataSizeType,'geometric')
+        error('Traffic model not supported.');
+    end    
+    lambda = 1/(user.TrafficModel.InterArrivalParam*1000/SimulationConstants.SimTimeTick_ms);
+    nu = 1/(user.TrafficModel.DataSizeParam*8/100);
+    switch lower(user.UtilType)
+        case 'prob_survival'
+            util = utility(t,b,lambda,nu);
+        case 'valued_usage'
+            util = utility2(t,b,lambda,nu);
+        otherwise
+            error('Utility type not recognized.');
+    end
+%     % debug
+%     b
+%     t
+%     lambda
+%     nu
+%     util
+%     user
+end    

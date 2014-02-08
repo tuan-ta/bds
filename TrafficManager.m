@@ -8,15 +8,17 @@ classdef TrafficManager
     methods (Static)
         function generateTraffic(user)
             DEBUG = false;
+            % calculate path loss
+            if ~(strcmpi(user.StatusNoncoop,'death')&&strcmpi(user.StatusCoop,'death')) && ...
+                    ~user.WaitingForHelpAssignmentFlag
+                user.updatePathloss();
+            end
             
             % consume battery for current burst
             %% noncoop
             if ~strcmpi(user.StatusNoncoop,'death') && ~user.WaitingForHelpAssignmentFlag
-                consumeEnergy(user,'U2E','Noncoop');                
-                if user.BatteryLevelNoncoop <= 0
-                    user.StatusNoncoop = 'death';
-                    user.DeathInstantNoncoop = user.Clock;                    
-                end
+                consumeEnergy(user,'U2E','Noncoop');
+                user.updateNoncoopStatus();
             end
             
             %% coop
@@ -24,7 +26,7 @@ classdef TrafficManager
             if ~strcmpi(user.StatusCoop,'death')
                 if user.WaitingForHelpAssignmentFlag || ...
                         (SimulationConstants.CooperationFlag && strcmpi(user.StatusCoop,'low') && ...
-                        ChannelManager.pathloss(user,'U2E') > SimulationConstants.PathlossThreshold_dBm)
+                        user.PathlossU2E > SimulationConstants.PathlossThreshold_dBm)
                     if ~user.CoopManager.HelpFlag % first to request help                
                         user.CoopManager.requestHelp(user);
                         % check for helper assignment in the next clock
@@ -65,18 +67,8 @@ classdef TrafficManager
                     consumeEnergy(user,'U2E','Coop');
                     user.WaitingForHelpAssignmentFlag = false;
                 end
-
-                % update UE's status
-                if user.BatteryLevelCoop >= SimulationConstants.HighThreshold*SimulationConstants.BatteryCapacity_mJ
-                    user.StatusCoop = 'high';
-                elseif user.BatteryLevelCoop >= SimulationConstants.LowThreshold*SimulationConstants.BatteryCapacity_mJ
-                    user.StatusCoop = 'medium';
-                elseif user.BatteryLevelCoop > 0
-                    user.StatusCoop = 'low';
-                else
-                    user.StatusCoop = 'death';
-                    user.DeathInstantCoop = user.Clock;
-                end
+                
+                user.updateCoopStatus();
             end
             
             if SimulationConstants.LoggingFlag
@@ -156,13 +148,13 @@ function energy = consumeEnergy(users,linkType,coopType)
                 error('U2E link type should only have 1 UE.');
             end
             transmitPower_dBm = min(Pmax, P0 + 10*log10(SimulationConstants.NumRBsPerSubframe) + ...
-                alpha*ChannelManager.pathloss(users,linkType));
+                alpha*users.PathlossU2E);
             
-            energyConsumed = 10^(transmitPower_dBm/10)*numSubframes*1e-3 + ...
+            energyConsumed_mJ = 10^(transmitPower_dBm/10)*numSubframes*1e-3 + ...
                 SimulationConstants.CircuitryEnergy_mJ;
             
-            users.depleteBattery(energyConsumed,coopType);           
-            energy = energyConsumed;
+            users.depleteBattery(energyConsumed_mJ,coopType);
+            energy = energyConsumed_mJ;
 %{            
             if SimulationConstants.LoggingFlag
                 energyData = struct('Time',users(1).Clock,...
@@ -187,16 +179,16 @@ function energy = consumeEnergy(users,linkType,coopType)
             helpeeTransmitPower_dBm = min(Pmax, P0D2D + 10*log10(SimulationConstants.NumRBsPerSubframe) + ...
                 alpha*ChannelManager.pathloss(users,'D2D')); 
             helperTransmitPower_dBm = min(Pmax, P0 + 10*log10(SimulationConstants.NumRBsPerSubframe) + ...
-                alpha*ChannelManager.pathloss(helper,'U2E'));
+                alpha*helper.PathlossU2E);
             
-            helpeeEnergyConsumed = 10^(helpeeTransmitPower_dBm/10)*numSubframes*1e-3 + ...
+            helpeeEnergyConsumed_mJ = 10^(helpeeTransmitPower_dBm/10)*numSubframes*1e-3 + ...
                 SimulationConstants.CircuitryEnergy_mJ;
-            helperEnergyConsumed = 10^(helperTransmitPower_dBm/10)*numSubframes*1e-3 + ...
+            helperEnergyConsumed_mJ = 10^(helperTransmitPower_dBm/10)*numSubframes*1e-3 + ...
                 SimulationConstants.CircuitryEnergy_mJ;
             
-            helpee.depleteBattery(helpeeEnergyConsumed,'coop');
-            helper.depleteBattery(helperEnergyConsumed,'coop');
-            energy = [helpeeEnergyConsumed helperEnergyConsumed];
+            helpee.depleteBattery(helpeeEnergyConsumed_mJ,'coop');
+            helper.depleteBattery(helperEnergyConsumed_mJ,'coop');
+            energy = [helpeeEnergyConsumed_mJ helperEnergyConsumed_mJ];
 %{            
             if SimulationConstants.LoggingFlag
                 helpeeEnergyData = struct('Time',helpee.Clock,...
@@ -220,8 +212,8 @@ function energy = consumeEnergy(users,linkType,coopType)
                 fprintf('U2E path loss for user %g: %g\n',helper.ID,ChannelManager.pathloss(helper,'U2E'));
                 fprintf('D2D transmit power for user %g: %g\n',helpee.ID,helpeeTransmitPower_dBm);
                 fprintf('U2E transmit power for user %g: %g\n',helper.ID,helperTransmitPower_dBm);
-                fprintf('D2D energy consumed by user %g: %g\n',helpee.ID,helpeeEnergyConsumed);
-                fprintf('U2E energy consumed by user %g: %g\n',helper.ID,helperEnergyConsumed);
+                fprintf('D2D energy consumed by user %g: %g\n',helpee.ID,helpeeEnergyConsumed_mJ);
+                fprintf('U2E energy consumed by user %g: %g\n',helper.ID,helperEnergyConsumed_mJ);
             end
         otherwise
             error('linkType should be U2E or D2D.');

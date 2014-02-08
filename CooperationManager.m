@@ -2,6 +2,13 @@ classdef CooperationManager < handle
 % CooperationManager resides at eNodeB and implements helper selection
 % algorithm. The same CooperationManager is used for all UEs in the cell.
 
+% Current version: Only one helpee is assigned helper at a time. When there
+% are multiple users requesting help at the same clock tick, they are
+% served in the order of the requests (almost always the same as the order
+% of the user ID - this depends on the loop in main.m). As a result, later
+% helpees will have to wait for some number of clock ticks before getting
+% helped.
+
     properties (SetAccess = private)
         HelpFlag = false;
         HelpeeID = [];
@@ -21,7 +28,9 @@ classdef CooperationManager < handle
             CM.HelpFlag = true;
             CM.HelpeeID = user.ID;
             CM.HelpeePos = user.Position;
-            CM.HelpLog = [CM.HelpLog [user.Clock; user.ID; -1]];
+            if SimulationConstants.LoggingFlag
+                CM.HelpLog = [CM.HelpLog [user.Clock; user.ID; -1]];
+            end
         end
         
         function registerHelper(CM,user)
@@ -29,8 +38,7 @@ classdef CooperationManager < handle
         end        
         
         function helper = assignHelper(CM,helpee)
-        % assignHelper selects among users within range the one with
-        % highest remaning battery level
+        % assignHelper selects among users within range
         
             assignmentMode = 'closest'; % 'closest' or 'max_battery'
             helper = [];
@@ -55,10 +63,10 @@ classdef CooperationManager < handle
                         error(['Helper assignment mode ''' assignmentMode ''' is not supported.']);
                 end
             end
-            if ~isempty(helper)
+            if SimulationConstants.LoggingFlag && ~isempty(helper)
                 CM.HelpLog(3,end) = helper.ID;
             end
-            if SimulationConstants.DebugFlag
+            if SimulationConstants.DebuggingFlag
                 CM
                 helper
             end
