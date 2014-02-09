@@ -14,6 +14,7 @@ classdef LTEUser < handle
         StartInstant
         StopInstant
         UtilType
+        Utility
         PathlossU2E
     end
     
@@ -44,10 +45,10 @@ classdef LTEUser < handle
             %   3. Burst size (in bytes)
             %   4. Remaining battery for noncoop (in mJ)
             %   5. Remaining battery for coop (in mJ)
-            %   6. ID of the other UE for D2D if coop happened, 0 otherwise
-        WaitingForHelpAssignmentFlag = false;
+            %   6. ID of the other UE for D2D if coop happened, 0 otherwise        
         DeathInstantCoop = Inf;
         DeathInstantNoncoop = Inf;
+        NumDataBursts = 0;
     end
     
     events
@@ -90,27 +91,18 @@ classdef LTEUser < handle
                 u.Clock = u.Clock + 1;
                 return
             elseif u.Clock == u.StartInstant % bootstrap for traffic manager and mobility manager                
-                u.StatusNoncoop = 'active';
-                u.updatePathloss();
-                u.updateCoopStatus();
+                u.StatusNoncoop = 'active';                
                 u.NextBurstInstant = u.StartInstant;
                 u.NextMovementInstant = u.StartInstant;
             end
             
-            if u.CoopManager.HelpFlag && strcmpi(u.StatusCoop,'high')
-                % Using previous value of utility to decide whether or not
-                % to help. This avoids computing utility every time there's
-                % a help request.
-                MobilityManager.updatePosition(u);
-                if norm(u.Position-u.CoopManager.HelpeePos) <= SimulationConstants.HelpRange_m
-                    u.CoopManager.registerHelper(u);
-                    
-                    if SimulationConstants.DebuggingFlag
-                        fprintf('Clock: %g, Helpee: %g, potential helper: %g, distance: %g\n',...
-                            u.Clock,u.CoopManager.HelpeeID,u.ID,norm(u.Position-u.CoopManager.HelpeePos));
-                    end
-                end
-            end
+%             if u.CoopManager.HelpFlag && strcmpi(u.StatusCoop,'high')
+%                 % Using previous value of utility to decide whether or not
+%                 % to help. This avoids computing utility every time there's
+%                 % a help request.
+%                 MobilityManager.updatePosition(u);
+%                 u.CoopManager.registerHelper(u);                
+%             end
             
             % event triggers happen before clock tick to make scheduling start at time 0
             if u.Clock == u.NextBurstInstant
@@ -121,8 +113,12 @@ classdef LTEUser < handle
             end
             u.Clock = u.Clock + 1;
             if u.Clock == u.StopInstant
-                u.StatusCoop = 'stopped';
-                u.StatusNoncoop = 'stopped';
+                if ~strcmpi(u.StatusCoop,'death')
+                    u.StatusCoop = 'stopped';
+                end
+                if ~strcmpi(u.StatusNoncoop,'death')
+                    u.StatusNoncoop = 'stopped';
+                end
             end
         end
         
@@ -173,6 +169,7 @@ classdef LTEUser < handle
             end
             
             util = computeUtility(u);
+            u.Utility = util;
             if util >= SimulationConstants.HighThreshold
                 u.StatusCoop = 'high';
             elseif util >= SimulationConstants.LowThreshold

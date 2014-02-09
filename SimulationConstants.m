@@ -2,13 +2,14 @@ classdef SimulationConstants
 % Constants used in simulation
 
     properties (Constant)
+        NumUEs = 500;
         SimDay_h = 0.1;  
         SimExpectedUsage_h = 8;
         SimTime_h = SimulationConstants.SimDay_h;
         SimTimeTick_ms = 1e2; % (ms)
         CooperationFlag = true; % enable/disable cooperation
         LoggingFlag = false; % log events in user's log field
-        DebuggingFlag = true;
+        DebuggingFlag = false;
         
         % Traffic model
         InterBurstArrival_s = 30; % (s)
@@ -31,7 +32,7 @@ classdef SimulationConstants
         %   - InterBurstArrival: 30 s (should be the same as above)
         CircuitryEnergy_mJ = 15; % 3mW * 5s = 15mJ
         
-        BatteryCapacity_mJ = 1.88e3/2; % (mJ)
+        BatteryCapacity_mJ = 1.88e3*2/3; % (mJ)
         BasePowerU2E_dBm = -69; % -126 to 24 dBm (LTE book pg. 413)
             % An UE in the middle of the cell (250m) spends 3x power per RB
             % compared to idle (1*3 = 3mW)
@@ -48,8 +49,8 @@ classdef SimulationConstants
         
         % Helper selection algorithm
         UtilityType = 'valued_usage';%'prob_survival';
-        HighThreshold = 0.3;
-        LowThreshold = 0.3;
+        HighThreshold = 0.95;
+        LowThreshold = 0.8;
         HelpRange_m = 30; % (m)
         PathlossThreshold_dBm = 110; 
             % UE only requests for help if its path loss is greater than

@@ -10,7 +10,7 @@ clk = clock;
 rng('shuffle');
 
 %% create cell
-macroCell = LTECell(500,'circular');
+macroCell = LTECell(300,'circular');
 cooperationManager = CooperationManager();
 
 %% create users
@@ -35,7 +35,7 @@ cooperationManager = CooperationManager();
 %   problem with this method is that since UEs wake up at different times,
 %   the number cooperative UEs is small.
 
-numUsers = 500;
+numUsers = SimulationConstants.NumUEs;
 % startInstants = random('unif',0,SimulationConstants.SimDay_h*3600e3/SimulationConstants.SimTimeTick_ms,...
 %     1,numUsers);
 % stopInstants = startInstants + SimulationConstants.SimExpectedUsage_h*3600e3/SimulationConstants.SimTimeTick_ms;
@@ -49,6 +49,7 @@ for iUser = 1:numUsers
     user.assignParticipateInstants(startInstants(iUser),stopInstants(iUser));
     users(iUser) = user;
 end
+cooperationManager.assignUsers(users);
 
 %% run simulation
 activeUserList = true(1,numUsers);

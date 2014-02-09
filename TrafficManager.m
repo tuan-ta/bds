@@ -8,78 +8,60 @@ classdef TrafficManager
     methods (Static)
         function generateTraffic(user)
             DEBUG = false;
-            % calculate path loss
-            if ~(strcmpi(user.StatusNoncoop,'death')&&strcmpi(user.StatusCoop,'death')) && ...
-                    ~user.WaitingForHelpAssignmentFlag
+            % calculate path loss (includes updating user location)
+            if ~(strcmpi(user.StatusNoncoop,'death')&&strcmpi(user.StatusCoop,'death')) 
                 user.updatePathloss();
+                user.NumDataBursts = user.NumDataBursts + 1;
             end
             
             % consume battery for current burst
+            energyU2E = energyToConsume(user,'U2E');
             %% noncoop
-            if ~strcmpi(user.StatusNoncoop,'death') && ~user.WaitingForHelpAssignmentFlag
-                consumeEnergy(user,'U2E','Noncoop');
+            if ~strcmpi(user.StatusNoncoop,'death')
+                user.depleteBattery(energyU2E,'Noncoop');
                 user.updateNoncoopStatus();
             end
             
             %% coop
-            % WaitingForHelpAssignmentFlag should be cleared every time a burst is served
-            if ~strcmpi(user.StatusCoop,'death')
-                if user.WaitingForHelpAssignmentFlag || ...
-                        (SimulationConstants.CooperationFlag && strcmpi(user.StatusCoop,'low') && ...
-                        user.PathlossU2E > SimulationConstants.PathlossThreshold_dBm)
-                    if ~user.CoopManager.HelpFlag % first to request help                
-                        user.CoopManager.requestHelp(user);
-                        % check for helper assignment in the next clock
-                        user.NextBurstInstant = user.NextBurstInstant + 1;
-                        user.WaitingForHelpAssignmentFlag = true;
-                        return
-                    elseif user.CoopManager.HelpeeID == user.ID % help granted to this UE
-                        helper = user.CoopManager.assignHelper(user);
-                        if ~isempty(helper)
-                            consumeEnergy([user helper],'D2D','Coop');
-%{                            
-                            if SimulationConstants.LoggingFlag
-                                user.Log = [user.Log struct('Time',user.Clock,...
-                                                            'Event','Coop',...
-                                                            'Details',struct('Helpee',user.ID,...
-                                                                             'Helper',helper.ID,...
-                                                                             'HelpeePos',user.Position,...
-                                                                             'HelperPos',helper.Position,...
-                                                                             'HelpeeEnergyConsumed',energy(1),...
-                                                                             'HelperEnergyConsumed',energy(2)))];
-                            end
-%}                            
-                        else
-                            consumeEnergy(user,'U2E','Coop');
-                        end
-                        user.WaitingForHelpAssignmentFlag = false;
-                        if DEBUG
-                            user
-                            helper
-                        end
-                    else % somebody else has already requested help 
-                         % wait until next round
-                        user.NextBurstInstant = user.NextBurstInstant + 1;
-                        user.WaitingForHelpAssignmentFlag = true;
-                        return
-                    end                   
+            % #TT design decision: if UE starts out at 'low' status, it
+            % might have fewer potential helpers because UEs with higher ID
+            % have not been examined. This symptom lasts only for the first
+            % round thus is not worth adding more initialization logic
+            if SimulationConstants.CooperationFlag && ~strcmpi(user.StatusCoop,'death')
+                user.updateCoopStatus();                
+                if strcmpi(user.StatusCoop,'low') && ...
+                        user.PathlossU2E > SimulationConstants.PathlossThreshold_dBm                    
+                    helper = user.CoopManager.assignHelper(user.ID);
+                    if ~isempty(helper)
+                        energyD2D = energyToConsume([user helper],'D2D');
+                        user.depleteBattery(energyD2D(1),'Coop');
+                        helper.depleteBattery(energyD2D(2),'Coop');
+                        helper.updateCoopStatus();
+                        helper.CoopManager.updateHelperStatus(helper.ID);
+                    else
+                        user.depleteBattery(energyU2E,'Coop');
+                    end
+                    user.updateCoopStatus();
+                    if DEBUG
+                        user
+                        helper
+                    end
                 else
-                    consumeEnergy(user,'U2E','Coop');
-                    user.WaitingForHelpAssignmentFlag = false;
-                end
-                
-                user.updateCoopStatus();
+                    user.depleteBattery(energyU2E,'Coop');
+                    user.updateCoopStatus();
+                    user.CoopManager.updateHelperStatus(user.ID);
+                end                
             end
             
-            if SimulationConstants.LoggingFlag
-                logEntry = [1; user.Clock; user.NextBurstSize; user.BatteryLevelNoncoop; user.BatteryLevelCoop; 0];
-                if exist('helper','var') && ~isempty(helper)
-                    logEntry(6) = helper.ID;
-                    logEntryHelper = [0; helper.Clock; user.NextBurstSize; helper.BatteryLevelNoncoop; helper.BatteryLevelCoop; user.ID];
-                    helper.Log = [helper.Log logEntryHelper];
-                end
-                user.Log = [user.Log logEntry];
-            end     
+%             if SimulationConstants.LoggingFlag
+%                 logEntry = [1; user.Clock; user.NextBurstSize; user.BatteryLevelNoncoop; user.BatteryLevelCoop; 0];
+%                 if exist('helper','var') && ~isempty(helper)
+%                     logEntry(6) = helper.ID;
+%                     logEntryHelper = [0; helper.Clock; user.NextBurstSize; helper.BatteryLevelNoncoop; helper.BatteryLevelCoop; user.ID];
+%                     helper.Log = [helper.Log logEntryHelper];
+%                 end
+%                 user.Log = [user.Log logEntry];
+%             end     
             
             %% schedule the next burst
             if strcmpi(user.TrafficModel.InterArrivalType,'geometric')
@@ -117,15 +99,11 @@ classdef TrafficManager
     end
 end
 
-function energy = consumeEnergy(users,linkType,coopType)
+function energy = energyToConsume(users,linkType)
 % deduct battery according to burst size, link type and channel at users' 
 % location
 
     DEBUG = false;
-    if strcmpi(linkType,'d2d') && strcmpi(coopType,'noncoop')
-        error('D2D links are only used in cooperative mode');
-    end   
-    
     numRBs = ceil(users(1).NextBurstSize*8/100); 
     % 12 (subcarriers) * 7 (symbols/slot) * 4 (bits/symbol) * 0.9 (10% used
     % for control) * 1/3 (code rate) = 100 bits/RB
@@ -153,7 +131,6 @@ function energy = consumeEnergy(users,linkType,coopType)
             energyConsumed_mJ = 10^(transmitPower_dBm/10)*numSubframes*1e-3 + ...
                 SimulationConstants.CircuitryEnergy_mJ;
             
-            users.depleteBattery(energyConsumed_mJ,coopType);
             energy = energyConsumed_mJ;
 %{            
             if SimulationConstants.LoggingFlag
@@ -184,10 +161,8 @@ function energy = consumeEnergy(users,linkType,coopType)
             helpeeEnergyConsumed_mJ = 10^(helpeeTransmitPower_dBm/10)*numSubframes*1e-3 + ...
                 SimulationConstants.CircuitryEnergy_mJ;
             helperEnergyConsumed_mJ = 10^(helperTransmitPower_dBm/10)*numSubframes*1e-3 + ...
-                SimulationConstants.CircuitryEnergy_mJ;
+                SimulationConstants.CircuitryEnergy_mJ;            
             
-            helpee.depleteBattery(helpeeEnergyConsumed_mJ,'coop');
-            helper.depleteBattery(helperEnergyConsumed_mJ,'coop');
             energy = [helpeeEnergyConsumed_mJ helperEnergyConsumed_mJ];
 %{            
             if SimulationConstants.LoggingFlag

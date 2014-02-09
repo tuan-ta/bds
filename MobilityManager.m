@@ -45,13 +45,16 @@ classdef MobilityManager
         % If the user goes outside his cell boundary, this function makes
         % him "reflect" back within the cell at the boundary crossing point
 
+            duration = (user.Clock - user.WalkTimeMarker)*SimulationConstants.SimTimeTick_ms/1000;            
+            if duration == 0
+                return
+            elseif duration < 0
+                error('Negative duration');
+            end
             prePos = user.Position;
             speed = user.Speed;
             direction = user.Direction;
-            duration = (user.Clock - user.WalkTimeMarker)*SimulationConstants.SimTimeTick_ms/1000;
-            if duration < 0
-                error('Negative duration');
-            end
+            
             cell = user.Cell;
 
             [dx dy] = pol2cart(direction,speed*duration);

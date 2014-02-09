@@ -10,49 +10,59 @@ classdef CooperationManager < handle
 % helped.
 
     properties (SetAccess = private)
-        HelpFlag = false;
-        HelpeeID = [];
-        HelpeePos = [];
-        HelperList = [];
-        HelpLog = [];
+        Users                
+        HelperList = false(1,SimulationConstants.NumUEs);
+        NumHelpedSessions = zeros(1,SimulationConstants.NumUEs);
     end
 
     methods
-        function requestHelp(CM,user)
-            if CM.HelpFlag
-                error('Another user has already requested help.');
+        function assignUsers(CM,users)
+            if length(users)~=SimulationConstants.NumUEs
+                error('Number of UEs does not conform with SimulationConstants');
             end
-            if ~strcmpi(user.StatusCoop,'low')
-                error('Helpee must be in ''low'' state.');
-            end
-            CM.HelpFlag = true;
-            CM.HelpeeID = user.ID;
-            CM.HelpeePos = user.Position;
-            if SimulationConstants.LoggingFlag
-                CM.HelpLog = [CM.HelpLog [user.Clock; user.ID; -1]];
+            CM.Users = users;
+        end
+        
+        function updateHelperStatus(CM,uID)
+            if strcmpi(CM.Users(uID).StatusCoop,'high')
+                CM.HelperList(uID) = true;
+            else
+                CM.HelperList(uID) = false;
             end
         end
         
-        function registerHelper(CM,user)
-            CM.HelperList = [CM.HelperList user];
-        end        
-        
-        function helper = assignHelper(CM,helpee)
+        function helper = assignHelper(CM,helpeeID)
         % assignHelper selects among users within range
         
             assignmentMode = 'closest'; % 'closest' or 'max_battery'
             helper = [];
+            helpeePos = CM.Users(helpeeID).Position;
             maxBatteryLevel = -Inf; minDistance = Inf;
-            for ih = 1:length(CM.HelperList)
-                user = CM.HelperList(ih);
-%                 if norm(user.Position-helpee.Position) > SimulationConstants.HelpRange_m
-%                     continue
-%                 end
+            for ih = find(CM.HelperList)
+                user = CM.Users(ih);
+                MobilityManager.updatePosition(user);
+                if norm(user.Position-helpeePos) > SimulationConstants.HelpRange_m
+                    continue
+                end
+                
+                % #TT design decision: update helper StatusCoop or not
+                %   1. Yes: More computation, less cooperation, can use
+                %   utility as a metric to choose helper
+                %   2. No: Helper might have moved and the new path loss
+                %   changes the StatusCoop from 'high' to something else
+                % Current choice: Yes
+                user.updatePathloss();
+                user.updateCoopStatus();
+                if ~strcmpi(user.StatusCoop,'high')
+                    CM.HelperList(ih) = false;
+                    continue
+                end
+                
                 switch lower(assignmentMode)
                     case 'closest'
-                        if norm(user.Position-helpee.Position) < minDistance
+                        if norm(user.Position-helpeePos) < minDistance
                             helper = user;
-                            minDistance = norm(user.Position-helpee.Position);
+                            minDistance = norm(user.Position-helpeePos);
                         end
                     case 'max_battery'
                         if user.BatteryLevel > maxBatteryLevel
@@ -63,21 +73,14 @@ classdef CooperationManager < handle
                         error(['Helper assignment mode ''' assignmentMode ''' is not supported.']);
                 end
             end
-            if SimulationConstants.LoggingFlag && ~isempty(helper)
-                CM.HelpLog(3,end) = helper.ID;
+            if ~isempty(helper)
+                CM.NumHelpedSessions(helpeeID) = CM.NumHelpedSessions(helpeeID) + 1;
             end
             if SimulationConstants.DebuggingFlag
-                CM
+                fprintf('Helpee: \n');
+                CM.Users(helpeeID)
                 helper
-            end
-            clearCooperationManager(CM);      
+            end            
         end
     end
-end
-
-function clearCooperationManager(CM)
-    CM.HelpFlag = false;
-    CM.HelperList = [];
-    CM.HelpeeID = [];
-    CM.HelpeePos = [];
 end
