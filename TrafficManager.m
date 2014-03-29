@@ -8,21 +8,22 @@ classdef TrafficManager
     methods (Static)
         function generateTraffic(user)
             DEBUG = false;
-            % calculate path loss (includes updating user location)
-            if ~(strcmpi(user.StatusNoncoop,'death')&&strcmpi(user.StatusCoop,'death')) 
+            %% consume battery for current burst
+            % update user location and calculate path loss
+            if ~(strcmpi(user.StatusNoncoop,'death')&&strcmpi(user.StatusCoop,'death'))
+                user.updatePosition();
                 user.updatePathloss();
                 user.NumDataBursts = user.NumDataBursts + 1;
-            end
+            end            
             
-            % consume battery for current burst
             energyU2E = energyToConsume(user,'U2E');
-            %% noncoop
+            % noncoop
             if ~strcmpi(user.StatusNoncoop,'death')
                 user.depleteBattery(energyU2E,'Noncoop');
                 user.updateNoncoopStatus();
             end
             
-            %% coop
+            % coop
             % #TT design decision: if UE starts out at 'low' status, it
             % might have fewer potential helpers because UEs with higher ID
             % have not been examined. This symptom lasts only for the first
@@ -108,7 +109,12 @@ function energy = energyToConsume(users,linkType)
     % 12 (subcarriers) * 7 (symbols/slot) * 4 (bits/symbol) * 0.9 (10% used
     % for control) * 1/3 (code rate) = 100 bits/RB
     if numRBs == 0
-        energy = 0;
+        switch lower(linkType)
+            case 'u2e'
+                energy = 0;
+            case 'd2d'
+                energy = [0 0];
+        end
         return
     end    
     numSubframes = ceil(numRBs/SimulationConstants.NumRBsPerSubframe);

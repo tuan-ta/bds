@@ -10,6 +10,11 @@ if t <= 0
     return
 end
 
+if b <= 0
+    u = 0;
+    return
+end
+
 switch lower(method)
     case 'gaussian'
         mu = b*nu/lambda;

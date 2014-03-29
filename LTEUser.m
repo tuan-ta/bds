@@ -11,34 +11,36 @@ classdef LTEUser < handle
         Position
         Cell
         CoopManager
+        RecordManager
         StartInstant
         StopInstant
+        TargetUsage
         UtilType
         Utility
         PathlossU2E
     end
     
     properties
-        StatusCoop = 'inactive'; 
+        StatusCoop
             % inactive: before start instant
             % low: needing help
             % high: can help
             % medium: neither
             % stopped: after stop instant
             % death
-        StatusNoncoop = 'inactive';
+        StatusNoncoop
             % inactive: before start instant
             % active
             % stopped
             % death
         % traffic-related properties
-        NextBurstInstant = 0;
-        NextBurstSize = 0; % (bytes)
+        NextBurstInstant
+        NextBurstSize % (bytes)
         % mobility-related properties
-        NextMovementInstant = 0;
-        Speed = 0; % (m/s)
-        Direction = 0; % (rad)
-        WalkTimeMarker = 0; % keeping track of last time instant that position was updated
+        NextMovementInstant
+        Speed % (m/s)
+        Direction % (rad)
+        WalkTimeMarker % keeping track of last time instant that position was updated
         Log % each log entry is a 6x1 column vector - Matlab is more efficient with vectors than structs
             %   1. Data ownership flag (1: own data, 0: helping somebody else)
             %   2. Time instant (in simulation tick)
@@ -46,9 +48,11 @@ classdef LTEUser < handle
             %   4. Remaining battery for noncoop (in mJ)
             %   5. Remaining battery for coop (in mJ)
             %   6. ID of the other UE for D2D if coop happened, 0 otherwise        
-        DeathInstantCoop = Inf;
-        DeathInstantNoncoop = Inf;
-        NumDataBursts = 0;
+        DeathInstantCoop
+        DeathInstantNoncoop
+        NumDataBursts
+        NumHelpers
+        NumHelpees
     end
     
     events
@@ -58,34 +62,58 @@ classdef LTEUser < handle
     
     methods
         function u = LTEUser(id)
-            u.ID = id;
+            if nargin > 0 % handle no argument constuctor for users array preallocation
+                u.ID = id;
+                u.Clock = 0;
+                u.Position = [0 0];
+                % usage rate varies from "day" to "day"
+    %             numRates = length(SimulationConstants.InterBurstArrival_s);
+    %             rate = SimulationConstants.InterBurstArrival_s(ceil(numRates*random('unif',0,1)));
+    %             u.TrafficModel = LTETrafficModel(rate,...
+    %                                              SimulationConstants.MeanBurstSize_bytes);            
+                u.TrafficModel = LTETrafficModel(SimulationConstants.InterBurstArrival_s,...
+                                                 SimulationConstants.MeanBurstSize_bytes);
+                u.MobilityModel = LTEMobilityModel(SimulationConstants.SpeedInterval_mps,...
+                                                   SimulationConstants.PauseInterval_s,...
+                                                   SimulationConstants.WalkInterval_s);
+                TrafficManager.addUser(u);
+                MobilityManager.addUser(u);
+                u.UtilType = SimulationConstants.UtilityType;
+                u.reinitiate();
+            end
+        end
+        
+        function reinitiate(u)
             initBatteryLevel = SimulationConstants.BatteryCapacity_mJ;
 %             initBatteryLevel = SimulationConstants.BatteryCapacity_mJ*...
 %                 random('unif',SimulationConstants.LowThreshold,1);
             u.BatteryLevelCoop = initBatteryLevel;
             u.BatteryLevelNoncoop = initBatteryLevel;
-            u.Clock = 0;
-            u.Position = [0 0];
-            % usage rate varies from "day" to "day"
-%             numRates = length(SimulationConstants.InterBurstArrival_s);
-%             rate = SimulationConstants.InterBurstArrival_s(ceil(numRates*random('unif',0,1)));
-%             u.TrafficModel = LTETrafficModel(rate,...
-%                                              SimulationConstants.MeanBurstSize_bytes);            
-            u.TrafficModel = LTETrafficModel(SimulationConstants.InterBurstArrival_s,...
-                                             SimulationConstants.MeanBurstSize_bytes);
-            u.MobilityModel = LTEMobilityModel(SimulationConstants.SpeedInterval_mps,...
-                                               SimulationConstants.PauseInterval_s,...
-                                               SimulationConstants.WalkInterval_s);
-            TrafficManager.addUser(u);
-            MobilityManager.addUser(u);
-            u.UtilType = SimulationConstants.UtilityType;
+            u.StartInstant = u.Clock;
+            targetUsage_h = random('unif',SimulationConstants.MinTargetUsage_h,...
+                                        SimulationConstants.MaxTargetUsage_h);
+            u.TargetUsage = ceil(targetUsage_h*3600e3/SimulationConstants.SimTimeTick_ms);
+            u.StopInstant = u.StartInstant + u.TargetUsage;
+            u.NextBurstInstant = u.Clock;
+            u.NextBurstSize = 0;
+            u.NextMovementInstant = u.Clock;
+            u.Speed = 0;
+            u.Direction = 0;
+            u.WalkTimeMarker = u.Clock;
+            u.StatusCoop = 'inactive';
+            u.StatusNoncoop = 'inactive';
+            u.DeathInstantCoop = Inf;
+            u.DeathInstantNoncoop = Inf;
+            u.NumDataBursts = 0;
+            u.NumHelpers = 0;
+            u.NumHelpees = 0;
         end
         
         function clockTick(u)
-            if (strcmpi(u.StatusCoop,'death') || strcmpi(u.StatusCoop,'stopped')) && ...
-                    (strcmpi(u.StatusNoncoop,'death') || strcmpi(u.StatusNoncoop,'stopped'))
-                return            
-            end
+%             if (strcmpi(u.StatusCoop,'death') || strcmpi(u.StatusCoop,'stopped')) && ...
+%                     (strcmpi(u.StatusNoncoop,'death') || strcmpi(u.StatusNoncoop,'stopped'))
+%                 return            
+%             end
             
             if u.Clock < u.StartInstant
                 u.Clock = u.Clock + 1;
@@ -113,12 +141,13 @@ classdef LTEUser < handle
             end
             u.Clock = u.Clock + 1;
             if u.Clock == u.StopInstant
-                if ~strcmpi(u.StatusCoop,'death')
-                    u.StatusCoop = 'stopped';
-                end
-                if ~strcmpi(u.StatusNoncoop,'death')
-                    u.StatusNoncoop = 'stopped';
-                end
+%                 if ~strcmpi(u.StatusCoop,'death')
+%                     u.StatusCoop = 'stopped';
+%                 end
+%                 if ~strcmpi(u.StatusNoncoop,'death')
+%                     u.StatusNoncoop = 'stopped';
+%                 end
+                u.record();
             end
         end
         
@@ -130,11 +159,22 @@ classdef LTEUser < handle
             u.CoopManager = CM;
         end
         
+        function assignRecordManager(u,RM)
+            u.RecordManager = RM;
+        end
+        
         function assignPosition(u,pos)
             u.Position = pos;
         end
         
-        function updatePathloss(u)
+        function updatePosition(u)
+            if (u.Clock - u.WalkTimeMarker) >= ...
+                    SimulationConstants.MobilityTolerance_s*1000/SimulationConstants.SimTimeTick_ms
+                MobilityManager.updatePosition(u); 
+            end
+        end
+        
+        function updatePathloss(u)            
             u.PathlossU2E = ChannelManager.pathloss(u,'U2E');
         end
         
@@ -157,7 +197,10 @@ classdef LTEUser < handle
         function updateNoncoopStatus(u)
             if u.BatteryLevelNoncoop <= 0
                 u.StatusNoncoop = 'death';
-                u.DeathInstantNoncoop = u.Clock;                    
+                u.DeathInstantNoncoop = u.Clock;
+                if strcmpi(u.StatusCoop,'death')
+                    u.record();
+                end
             end
         end
         
@@ -165,6 +208,9 @@ classdef LTEUser < handle
             if u.BatteryLevelCoop <= 0
                 u.StatusCoop = 'death';
                 u.DeathInstantCoop = u.Clock;
+                if strcmpi(u.StatusNoncoop,'death')
+                    u.record();
+                end
                 return
             end
             
@@ -174,9 +220,18 @@ classdef LTEUser < handle
                 u.StatusCoop = 'high';
             elseif util >= SimulationConstants.LowThreshold
                 u.StatusCoop = 'medium';
+            elseif strcmpi(u.UtilType,'prob_survival') && util < 0
+                % #TT temporary hardcoded the lowest utility of
+                % participating UE
+                u.StatusCoop = 'not_participating';
             else
                 u.StatusCoop = 'low';
             end
+        end
+        
+        function record(u)
+            u.RecordManager.record(u);
+            u.reinitiate();
         end
     end
 end

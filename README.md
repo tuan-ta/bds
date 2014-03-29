@@ -3,7 +3,8 @@ bds
 
 # Battery Deposit Service simulator
 
-This simulator intends to verify the performance of the Battery Deposit Service (BDS) introduced in [paper].
+This simulator intends to verify the performance of the Battery Deposit Service (BDS).
+[ICC 2014]: git commit 74a183760a905383502fe9acc1c4218a5d19d456
 
 -----------------------------
 
