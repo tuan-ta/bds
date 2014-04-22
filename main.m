@@ -1,16 +1,10 @@
 clc
+close all
 clear classes
 
-clk = clock;
-% randseed = round(79*clk(4) + 37*clk(5) + clk(6))
-
-% diary(sprintf('log_%g.txt',randseed));
-% SimulationConstants
-% rng(randseed);
 rng('shuffle');
-% profile on
 %% create cell
-macroCell = LTECell(500,'circular');
+macroCell = LTECell(300,'circular');
 cooperationManager = CooperationManager();
 recordManager = RecordManager();
 
@@ -24,7 +18,7 @@ recordManager = RecordManager();
 %   battery capacity, high initial battery is equivalent to low data rate;
 %   low initial battery is equivalent to high data rate.
 %
-%   In the paper, battery is initialized uniform random from low
+%   In the ICC paper, battery is initialized uniform random from low
 %   cooperative threshold to capacity. This allows all UEs full chance to
 %   cooperate. Data rate is the same for all UEs.
 %
@@ -38,9 +32,7 @@ recordManager = RecordManager();
 
 numUsers = SimulationConstants.NumUEs;
 for iUser = 1:numUsers
-    user = LTEUser(iUser);
-    user.assignCell(macroCell);
-    user.assignPosition(macroCell.randomPosition());
+    user = LTEUser(iUser,macroCell);
     user.assignCoopManager(cooperationManager);
     user.assignRecordManager(recordManager);
     users(iUser) = user;
@@ -65,17 +57,22 @@ simulTime = toc
 
 simulConstants = SimulationConstants.toStruct();
 
-fn = sprintf('data/%gh_%gh_%gh_%gmJ_%s_%g_%g.mat',...
-             SimulationConstants.SimTime_h,...
-             SimulationConstants.MinTargetUsage_h,...
-             SimulationConstants.MaxTargetUsage_h,...
-             SimulationConstants.BatteryCapacity_mJ,...
-             SimulationConstants.UtilityType,...
-             SimulationConstants.HighThreshold,...
-             SimulationConstants.LowThreshold);
+% save simulation record
+fn = sprintf('data/%gh_%gh_%g_%g_%gmJ_%g_%g_%s_%g_%g_%g_%g_%g.mat',...
+             simulConstants.SimTime_h,...
+             simulConstants.MaxTargetUsage_h,...
+             simulConstants.MinTargetUsageLevel,...
+             simulConstants.MaxTargetUsageLevel,...
+             simulConstants.BatteryCapacity_mJ,...
+             simulConstants.MaxBatteryLevel,...
+             simulConstants.MinBatteryLevel,...
+             simulConstants.UtilityType,...
+             simulConstants.HighThreshold,...
+             simulConstants.LowThreshold,...
+             simulConstants.NumUEs,...
+             macroCell.Radius,...
+             simulConstants.CooperationFlag);
 % save(fn);
 
 % run simulation with animation
 % simAnimate(users,macroCell);
-
-% diary off

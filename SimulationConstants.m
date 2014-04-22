@@ -2,16 +2,17 @@ classdef SimulationConstants
 % Constants used in simulation
 
     properties (Constant)
-        NumUEs = 300;
-        SimTime_h = 6;
+        NumUEs = 500;
+        SimTime_h = 2;
         SimTimeTick_ms = 1e2; % (ms)
         CooperationFlag = true; % enable/disable cooperation
         LoggingFlag = false; % log events in user's log field
         DebuggingFlag = false;
         
         % Usage model
-        MinTargetUsage_h = 0.6;
-        MaxTargetUsage_h = 3;
+        MaxTargetUsage_h = 0.5;
+        MinTargetUsageLevel = 0.2;
+        MaxTargetUsageLevel = 1;
         
         % Traffic model
         InterBurstArrival_s = 30; % (s)
@@ -37,7 +38,9 @@ classdef SimulationConstants
         %   - InterBurstArrival: 30 s (should be the same as above)
         CircuitryEnergy_mJ = 15; % 3mW * 5s = 15mJ
         
-        BatteryCapacity_mJ = 3e4; % (mJ)
+        BatteryCapacity_mJ = 6.5e3; % (mJ)
+        MinBatteryLevel = 0.5;
+        MaxBatteryLevel = 1;
         BasePowerU2E_dBm = -69; % -126 to 24 dBm (LTE book pg. 413)
             % An UE in the middle of the cell (250m) spends 3x power per RB
             % compared to idle (1*3 = 3mW)
@@ -53,8 +56,8 @@ classdef SimulationConstants
         NumWallsIndoorNLOS = 1;
         
         % Helper selection algorithm
-        UtilityType = 'valued_usage';
-        HighThreshold = 0.95;
+        UtilityType = 'battery';
+        HighThreshold = 0.9;
         LowThreshold = 0.5;
         HelpRange_m = 30; % (m)
         PathlossThreshold_dBm = 110; 

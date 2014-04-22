@@ -87,6 +87,9 @@ Implements Random Duration Model. Speed, pause duration and walk duration are dr
 
 Implements helper selection algorithm.
 
+### RecordManager
+Saves simulation results (UE usage stats) for analysis.
+
 ### SimulationConstants
 
 Class to hold constants used in the simulation.

@@ -2,13 +2,6 @@ classdef CooperationManager < handle
 % CooperationManager resides at eNodeB and implements helper selection
 % algorithm. The same CooperationManager is used for all UEs in the cell.
 
-% Current version: Only one helpee is assigned helper at a time. When there
-% are multiple users requesting help at the same clock tick, they are
-% served in the order of the requests (almost always the same as the order
-% of the user ID - this depends on the loop in main.m). As a result, later
-% helpees will have to wait for some number of clock ticks before getting
-% helped.
-
     properties (SetAccess = private)
         Users                
         HelperList = false(1,SimulationConstants.NumUEs);
@@ -27,7 +20,7 @@ classdef CooperationManager < handle
         end
         
         function updateHelperStatus(CM,uID)
-            if strcmpi(CM.Users(uID).StatusCoop,'high')
+            if strcmpi(CM.Users(uID).Status,'high')
                 CM.HelperList(uID) = true;
             else
                 CM.HelperList(uID) = false;
@@ -73,7 +66,7 @@ classdef CooperationManager < handle
                 %   utility as a metric to choose helper
                 %   2. No: Helper might have moved and the new path loss
                 %   changes the StatusCoop from 'high' to something else
-                % Current choice: Yes
+                % Current choice: No
                 user = CM.Users(ih);
                 user.updatePathloss();
 %                 user.updateCoopStatus();

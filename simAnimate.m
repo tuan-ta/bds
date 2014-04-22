@@ -11,7 +11,7 @@ function simAnimate(users,simCell)
     hold on
     plot(0,0,'rv','MarkerFaceColor','r');
     for iUser = 1:numUsers
-        vh_user_pos(iUser) = plot(users(iUser).Position(1),users(iUser).Position(1),'*','color','y');
+        vh_user_pos(iUser) = plot(users(iUser).Position(1),users(iUser).Position(1),'*','color','b');
     end
     xlabel('X (meters)');
     ylabel('Y (meters)');
@@ -35,22 +35,20 @@ function simAnimate(users,simCell)
         set(helpCirclePos,'XData',zeros(size(xcHelp)),'YData',zeros(size(ycHelp)));
         set(helpCircleNeg,'XData',zeros(size(xcHelp)),'YData',zeros(size(ycHelp)));
         for iUser = find(activeUserList)
-            if ~isempty(users(iUser).CoopManager.HelpeeID) && users(iUser).CoopManager.HelpeeID==users(iUser).ID
-                set(helpCirclePos,'XData',xcHelp + users(iUser).Position(1),'YData',ycHelp + users(iUser).Position(2));
-                set(helpCircleNeg,'XData',xcHelp + users(iUser).Position(1),'YData',-ycHelp + users(iUser).Position(2));
-            end 
+%             if ~isempty(users(iUser).CoopManager.HelpeeID) && users(iUser).CoopManager.HelpeeID==users(iUser).ID
+%                 set(helpCirclePos,'XData',xcHelp + users(iUser).Position(1),'YData',ycHelp + users(iUser).Position(2));
+%                 set(helpCircleNeg,'XData',xcHelp + users(iUser).Position(1),'YData',-ycHelp + users(iUser).Position(2));
+%             end 
             users(iUser).clockTick();
             MobilityManager.updatePosition(users(iUser));
             set(vh_user_pos(iUser),'XData',users(iUser).Position(1),'YData',users(iUser).Position(2));
-            if strcmpi(users(iUser).StatusCoop,'death')
+            if strcmpi(users(iUser).Status,'death')
                 set(vh_user_pos(iUser),'color','r');
-            elseif strcmpi(users(iUser).StatusCoop,'stopped')
-                set(vh_user_pos(iUser),'color','c');
-            elseif strcmpi(users(iUser).StatusNoncoop,'active')
-                set(vh_user_pos(iUser),'color','b');
+            elseif strcmpi(users(iUser).Status,'stopped')
+                set(vh_user_pos(iUser),'color','c');            
             end
-            if strcmpi(users(iUser).StatusCoop,'stopped') || ...
-                    (strcmpi(users(iUser).StatusCoop,'death') && strcmpi(users(iUser).StatusNoncoop,'death'))
+            if strcmpi(users(iUser).Status,'stopped') || ...
+                    strcmpi(users(iUser).Status,'death')
                 activeUserList(iUser) = false;
             end
         end

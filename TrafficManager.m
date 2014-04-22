@@ -8,57 +8,57 @@ classdef TrafficManager
     methods (Static)
         function generateTraffic(user)
             DEBUG = false;
+            
+            if strcmpi(user.Status,'death')
+                error('Death UE shouldn''t request for traffic');
+            end
             %% consume battery for current burst
             % update user location and calculate path loss
-            if ~(strcmpi(user.StatusNoncoop,'death')&&strcmpi(user.StatusCoop,'death'))
-                user.updatePosition();
-                user.updatePathloss();
-                user.NumDataBursts = user.NumDataBursts + 1;
-            end            
+            user.updatePosition();
+            user.updatePathloss();
+            user.NumDataBursts = user.NumDataBursts + 1;
             
             energyU2E = energyToConsume(user,'U2E');
-            % noncoop
-            if ~strcmpi(user.StatusNoncoop,'death')
-                user.depleteBattery(energyU2E,'Noncoop');
-                user.updateNoncoopStatus();
-            end
-            
+                        
             % coop
             % #TT design decision: if UE starts out at 'low' status, it
             % might have fewer potential helpers because UEs with higher ID
             % have not been examined. This symptom lasts only for the first
             % round thus is not worth adding more initialization logic
-            if SimulationConstants.CooperationFlag && ~strcmpi(user.StatusCoop,'death')
-                user.updateCoopStatus();                
-                if strcmpi(user.StatusCoop,'low') && ...
+            if SimulationConstants.CooperationFlag
+                user.updateStatus();                
+                if strcmpi(user.Status,'low') && ...
                         user.PathlossU2E > SimulationConstants.PathlossThreshold_dBm                    
                     helper = user.CoopManager.assignHelper(user.ID);
                     if ~isempty(helper)
                         energyD2D = energyToConsume([user helper],'D2D');
-                        user.depleteBattery(energyD2D(1),'Coop');
-                        helper.depleteBattery(energyD2D(2),'Coop');
-                        helper.updateCoopStatus();
+                        user.depleteBattery(energyD2D(1));
+                        helper.depleteBattery(energyD2D(2));
+                        helper.updateStatus();
                         helper.CoopManager.updateHelperStatus(helper.ID);
                     else
-                        user.depleteBattery(energyU2E,'Coop');
+                        user.depleteBattery(energyU2E);
                     end
-                    user.updateCoopStatus();
+                    user.updateStatus();
                     if DEBUG
                         user
                         helper
                     end
                 else
-                    user.depleteBattery(energyU2E,'Coop');
-                    user.updateCoopStatus();
+                    user.depleteBattery(energyU2E);
+                    user.updateStatus();
                     user.CoopManager.updateHelperStatus(user.ID);
                 end                
+            else
+                user.depleteBattery(energyU2E);
+                user.updateStatus();
             end
             
 %             if SimulationConstants.LoggingFlag
-%                 logEntry = [1; user.Clock; user.NextBurstSize; user.BatteryLevelNoncoop; user.BatteryLevelCoop; 0];
+%                 logEntry = [1; user.Clock; user.NextBurstSize; user.BatteryLevel; 0];
 %                 if exist('helper','var') && ~isempty(helper)
-%                     logEntry(6) = helper.ID;
-%                     logEntryHelper = [0; helper.Clock; user.NextBurstSize; helper.BatteryLevelNoncoop; helper.BatteryLevelCoop; user.ID];
+%                     logEntry(5) = helper.ID;
+%                     logEntryHelper = [0; helper.Clock; user.NextBurstSize; helper.BatteryLevel; user.ID];
 %                     helper.Log = [helper.Log logEntryHelper];
 %                 end
 %                 user.Log = [user.Log logEntry];
@@ -206,8 +206,7 @@ function logData(user)
     
     trafficData = struct('Time',user.Clock,...
                          'Event','Traffic',...
-                         'Details',struct('RemainingBatteryCoop',user.BatteryLevelCoop,...
-                                          'RemainingBatteryNoncoop',user.BatteryLevelNoncoop,...
+                         'Details',struct('RemainingBattery',user.BatteryLevel,...                                          
                                           'NextBurstArrival',user.NextBurstInstant,...
                                           'NextBurstSize',user.NextBurstSize,...
                                           'Position',user.Position));
